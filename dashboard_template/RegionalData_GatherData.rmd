@@ -1,0 +1,122 @@
+---
+title: "Census Data"
+author: "Pratik Chaudhari"
+date: "2/8/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Import packages
+
+```{r}
+library(tidyverse)
+library(tidycensus)
+library(readxl)
+library(srvyr, warn.conflicts = FALSE)
+```
+
+Census key
+
+```{r}
+#census_api_key('6b52713c88bfa73800e8edc88fe5537b2af7f31d',install = T, overwrite = T)
+```
+
+set variables to match form available variables
+
+```{r}
+vars_pattern <- 'B05002|C05006|C15002|B27001|B25035|C17010|C17001|B08301|C22001|B17010|C27001|B18101|B18107|B18103|B18106|B18102|B23008|B19001|B18120'
+
+vars_pattern_2 <- 'B17010|B11003|S2001|B19126|B20017|B240017|B20004|B23020|B24080|C24010|B23007|C24080|B23003|C23001|B17006|B09010|B17018|C17010|B22002|C17001|B17003|B23001|B23002|C15002|B15002|B14004|C08012|C08014|B17001|C11016|B11001|C11011|C23011|B23011|B23022|B25003|B25070|C19001|B19013|B22003|B22005|C15002|B18106|C27001'
+year = 2014
+survey = 'acs1'
+county <- c('Cabarrus County, North Carolina','Catawba County, North Carolina','Cleveland County, North Carolina','Gaston County, North Carolina','Iredell County, North Carolina','Lancaster County, South Carolina','Lincoln County, North Carolina','Mecklenburg County, North Carolina','Rowan County, North Carolina','Union County, North Carolina','York County, South Carolina')
+```
+
+Fetch variables
+
+1.  Generate list of variables to fetch
+
+```{r}
+df_vars <- load_variables(year,survey)
+df_vars <- df_vars %>% filter(str_detect(name,vars_pattern))
+
+df_vars_2 <- load_variables(year,survey)
+df_vars_2 <- df_vars %>% filter(str_detect(name,vars_pattern_2))
+```
+
+2.  Fetch data
+
+```{r}
+df0 <- get_acs('county',df_vars$name,year = 2010,state = c(37,45),survey=survey,show_call = F) %>%
+  mutate(Year = 2010)
+df1 <- get_acs('county',df_vars$name,year = 2011,state = c(37,45),survey=survey,show_call = F) %>%
+  mutate(Year = 2011)
+df2 <- get_acs('county',df_vars$name,year = 2012,state = c(37,45),survey=survey,show_call = F) %>%
+  mutate(Year = 2012)
+df3 <- get_acs('county',df_vars$name,year = 2013,state = c(37,45),survey=survey,show_call = F) %>%
+  mutate(Year = 2013)
+df4 <- get_acs('county',df_vars$name,year = 2014,state = c(37,45),survey=survey,show_call = F) %>%
+  mutate(Year = 2014)
+df5 <- get_acs('county',df_vars$name,year = 2015,state = c(37,45),survey=survey,show_call = F) %>%
+  mutate(Year = 2015)
+df6 <- get_acs('county',df_vars$name,year = 2016,state = c(37,45),survey=survey,show_call = F) %>%
+  mutate(Year = 2016)
+df7 <- get_acs('county',df_vars$name,year = 2017,state = c(37,45),survey=survey,show_call = F) %>%
+  mutate(Year = 2017)
+df8 <- get_acs('county',df_vars$name,year = 2018,state = c(37,45),survey=survey,show_call = F) %>%
+  mutate(Year = 2018)
+df9 <- get_acs('county',df_vars$name,year = 2019,state = c(37,45),survey=survey,show_call = F) %>%
+  mutate(Year = 2019)
+df_data <- rbind(df0, df1, df2, df3, df4, df5, df6, df7, df8, df9)
+df_data
+```
+
+Get Variables from partner data
+
+```{r}
+df_partner_data <- read_excel('Partners Master Spreadsheet_updated.xlsx','ACS Vars Calculated',trim_ws = T)
+```
+
+Join data between census and partner indicators
+
+```{r}
+df_partner_census <- df_partner_data %>% inner_join(df_data,by = c('Numerator' = 'variable')) %>% select(Year, `M ID`,`Data Format`,Numerator,Denominator,County = NAME,`Component Definition`, Numerator_value = estimate) %>% left_join(df_data,by = c('Denominator' = 'variable','County' = 'NAME', 'Year'))%>% select(Year, `M ID`,`Data Format`, Numerator,Denominator,County, Numerator_value,Denominator_value = estimate,`Component Definition`)
+df_partner_census
+```
+
+Read codes file
+
+```{r}
+df_codes <- read_excel('ALL_CODES.xlsx') %>% distinct()
+```
+
+join with census partner data
+
+```{r}
+df_partner_census <- df_codes %>% inner_join(df_partner_census, by = c('M ID'))
+```
+
+sum numerators
+
+```{r}
+df_partner_census_sum <- df_partner_census %>% group_by(Theme,`T ID`,Indicator,`I ID`,Measure,`M ID`,`Data Format`,Denominator,County,Denominator_value,`Component Definition`) %>% summarise(Numerator_value  = sum(Numerator_value))
+```
+
+Calculate percentages
+
+```{r}
+df_partner_census_sum <- df_partner_census_sum %>% mutate(PERCENT = (Numerator_value*100)/Denominator_value)
+```
+
+```{r}
+df_partner_census
+```
+
+Out file
+
+```{r}
+write.csv(df_partner_census,'Values.csv',row.names = F)
+```
