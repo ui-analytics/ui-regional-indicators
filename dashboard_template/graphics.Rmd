@@ -1,10 +1,11 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output: 
 ---
 
 
 ```{r}
+library(readxl)
 library(tidyverse)
 library(ggthemes)
 library(scales)
@@ -41,31 +42,25 @@ countypop <- cr %>% transmute(YEAR = YEAR, CHARLOTTEPOP = POPESTIMATE) %>% right
   group_by(CTYNAME) %>%
   mutate(CHANGE = ifelse(YEAR == 2010, 0, POPESTIMATE/lag(POPESTIMATE, default = first(YEAR)) - 1)) %>%
   ungroup()
-countypop
 ```
 
 ```{r}
-cbPalette <- c('#000000', '#187898', '#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7', '#128409', '#6517A9', '#B91036', '8FB910', '#1029B9')
-ggplot(data = countypop %>% filter(YEAR == 2019)) +
+pop_col <- ggplot(data = countypop %>% filter(YEAR == 2019)) +
   geom_col(aes(CTYNAME, POPESTIMATE, fill = CTYNAME), show.legend = F) +
   scale_y_continuous(labels = comma) +
-  scale_fill_manual(values = cbPalette) +
   coord_flip()
-ggplot(data = countypop) +
+pop_line <- ggplot(data = countypop) +
   geom_line(aes(YEAR, POPESTIMATE, color = CTYNAME)) +
   scale_y_continuous(labels = comma) +
-  scale_x_continuous(breaks = pretty_breaks()) +
-  scale_color_manual(values = cbPalette)
-ggplot(data = countypop) +
+  scale_x_continuous(breaks = pretty_breaks())
+pop_change <- ggplot(data = countypop) +
   geom_line(aes(YEAR, CHANGE, color = CTYNAME), size = 1.5) +
   scale_y_continuous(labels = scales::percent) +
-  scale_x_continuous(breaks = pretty_breaks()) +
-  scale_color_manual(values = cbPalette)
-ggplot(data = countypop %>% filter(CTYNAME == 'Anson')) +
+  scale_x_continuous(breaks = pretty_breaks())
+pop_change2 <- ggplot(data = countypop %>% filter(CTYNAME == 'Anson')) +
   geom_line(aes(YEAR, CHANGE, color = CTYNAME), size = 2) +
   scale_y_continuous(labels = scales::percent) +
-  scale_x_continuous(breaks = pretty_breaks()) +
-  scale_color_manual(values = cbPalette)
+  scale_x_continuous(breaks = pretty_breaks())
 ```
 
 ### Charlotte Region
@@ -106,9 +101,9 @@ ethpop <- rbind(read_csv("cc-est2019-alldata-37.csv", show_col_types = F),
          ) %>%
   filter(CTYNAME %in% counties, YEAR >= 3, AGEGRP == 0,
          !(STNAME == 'South Carolina' & CTYNAME == 'Union')) %>%
-  
   select(STNAME, CTYNAME, YEAR, TOT_POP, WHITE, BLACK, HISPANIC, ASIAN, ISLANDER, NATIVE, MULTIRACIAL) %>%
   distinct()
+
 ethpop <- ethpop %>%
   pivot_longer(cols = colnames(ethpop[,5:11]), names_to = 'ETHNICITY', values_to = 'POP')
 
@@ -136,7 +131,32 @@ ggplot(birthplace %>% filter(Year == 2014), aes(x = County, y = (Numerator_value
 
 
 
+```{r}
+employment_columns <- c('LAUS_Code', 'State_FIPS', 'County_FIPS', 'County_Name', 'Year', '', 'Labor_Force', 'Employed', 'Unemployed', 'Unemployment_Rate')
+employment <- rbind(read_xlsx('laucnty10.xlsx', col_names = employment_columns),
+                    read_xlsx('laucnty11.xlsx', col_names = employment_columns),
+                    read_xlsx('laucnty12.xlsx', col_names = employment_columns),
+                    read_xlsx('laucnty13.xlsx', col_names = employment_columns),
+                    read_xlsx('laucnty14.xlsx', col_names = employment_columns),
+                    read_xlsx('laucnty15.xlsx', col_names = employment_columns),
+                    read_xlsx('laucnty16.xlsx', col_names = employment_columns),
+                    read_xlsx('laucnty17.xlsx', col_names = employment_columns),
+                    read_xlsx('laucnty18.xlsx', col_names = employment_columns),
+                    read_xlsx('laucnty19.xlsx', col_names = employment_columns),
+                    read_xlsx('laucnty20.xlsx', col_names = employment_columns)) %>%
+  filter(State_FIPS == 37| State_FIPS == 45)
+employment <- employment %>%
+  mutate(County_Name = gsub(' County, NC', '', employment$County_Name))
+employment <- employment %>%
+  mutate(County_Name = gsub(' County, SC', '', employment$County_Name)) %>%
+  filter(!(State_FIPS == 45 & County_Name == 'Union') & County_Name %in% counties)
+```
 
+```{r}
+ggplot(data = employment %>% filter(Year == 2019))+
+  geom_col(aes(x = County_Name, y = Unemployment_Rate, fill = County_Name)) +
+  coord_flip()
+```
 
 
 
