@@ -1,21 +1,24 @@
 ---
 title: "R Notebook"
-output: 
+output: html_notebook
 ---
 
-
+# Load Packages
 ```{r}
-library(readxl)
 library(tidyverse)
 library(ggthemes)
 library(scales)
+library(readxl)
 ```
 
-# Demographics
-## Population
-### Counties
+
+# Making Dataframes
 ```{r}
+cbPalette <- c('#000000', '#187898', '#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7', '#128409', '#6517A9', '#B91036', '8FB910', '#1029B9')
+x_label <- c('Under 5 Female', 'Under 5 Male', '05-09 Female', '05-09 Male', '10-14 Female', '10-14 Male', '15-19 Female', '15-19 Male', '20-24 Female', '20-24 Male', '25-29 Female', '25-29 Male', '30-34 Female', '30-34 Male', '35-39 Female', '35-39 Male', '40-44 Female', '40-44 Male', '45-49 Female', '45-49 Male', '50-54 Female', '50-54 Male', '55-59 Female', '55-59 Male', '60-64 Female', '60-64 Male', '65-69 Female', '65-69 Male', '70-74 Female', '70-74 Male', '75-79 Female', '75-79 Male', '80-84 Female', '80-84 Male', '85 and over Female', '85 and over Male')
 counties <- c('Anson', 'Cabarrus', 'Catawba', 'Chester', 'Cleveland', 'Gaston', 'Iredell', 'Lancaster', 'Lincoln', 'Mecklenburg', 'Rowan', 'Stanly', 'Union', 'York')
+attainment_lvl <- c('Highest Degree: Less than a High School Diploma', 'Highest Degree: High School Diploma', 'Highest Degree: Some College, No Degree', "Highest Degree: Associate's Degree", "Highest Degree: Bachelor's Degree", "Highest Degree: Graduate or Professional Degree")
+foreign_detail <- c('Foreign-Born: Africa', 'Foreign-Born: Asia', 'Foreign-Born: Europe', 'Foreign-Born: Latin America', 'Place of Birth Total')
 
 countypop <- rbind(read_csv("cc-est2019-agesex-37.csv", show_col_types = F),
                    read_csv("cc-est2019-agesex-45.csv", show_col_types = F)) %>%
@@ -26,9 +29,7 @@ countypop <- rbind(read_csv("cc-est2019-agesex-37.csv", show_col_types = F),
          !(STNAME == 'South Carolina' & CTYNAME == 'Union')) %>%
   distinct()
 # Year 3 is 2010, Year 12 is 2019
-```
 
-```{r}
 # Making Charlotte Region
 cr <- countypop[1:10,] %>%
   mutate(CTYNAME = 'Charlotte Region')
@@ -37,34 +38,14 @@ for(i in 4:length(colnames(countypop))) {
     cr[j,i] <- sum((countypop %>% filter(YEAR == j+2009))[i])
   }
 }
+
+# Making Age & Gender data frame
 pop_age_gender <- rbind(countypop, cr)
 countypop <- cr %>% transmute(YEAR = YEAR, CHARLOTTEPOP = POPESTIMATE) %>% right_join(countypop, by = 'YEAR') %>% mutate(PROPORTION = POPESTIMATE / CHARLOTTEPOP) %>%
   group_by(CTYNAME) %>%
   mutate(CHANGE = ifelse(YEAR == 2010, 0, POPESTIMATE/lag(POPESTIMATE, default = first(YEAR)) - 1)) %>%
   ungroup()
-```
 
-```{r}
-pop_col <- ggplot(data = countypop %>% filter(YEAR == 2019)) +
-  geom_col(aes(CTYNAME, POPESTIMATE, fill = CTYNAME), show.legend = F) +
-  scale_y_continuous(labels = comma) +
-  coord_flip()
-pop_line <- ggplot(data = countypop) +
-  geom_line(aes(YEAR, POPESTIMATE, color = CTYNAME)) +
-  scale_y_continuous(labels = comma) +
-  scale_x_continuous(breaks = pretty_breaks())
-pop_change <- ggplot(data = countypop) +
-  geom_line(aes(YEAR, CHANGE, color = CTYNAME), size = 1.5) +
-  scale_y_continuous(labels = scales::percent) +
-  scale_x_continuous(breaks = pretty_breaks())
-pop_change2 <- ggplot(data = countypop %>% filter(CTYNAME == 'Anson')) +
-  geom_line(aes(YEAR, CHANGE, color = CTYNAME), size = 2) +
-  scale_y_continuous(labels = scales::percent) +
-  scale_x_continuous(breaks = pretty_breaks())
-```
-
-### Charlotte Region
-```{r}
 pop_age_gender <- pop_age_gender %>%
   select(-contains('_TOT'), -POPEST_FEM, -POPEST_MALE, -AGE16PLUS_MALE, -AGE16PLUS_FEM, -AGE18PLUS_FEM, -AGE18PLUS_MALE, -UNDER5_FEM, -UNDER5_MALE, -AGE1544_FEM, -AGE1544_MALE, -MEDIAN_AGE_FEM, -MEDIAN_AGE_MALE, -AGE65PLUS_FEM,-AGE65PLUS_MALE, -AGE513_FEM, -AGE513_MALE, -AGE4564_FEM, -AGE4564_MALE, -AGE2544_FEM, -AGE2544_MALE, -AGE1824_FEM, -AGE1824_MALE, -AGE1417_FEM, -AGE1417_MALE) %>%
   rename(AGE004_FEM = AGE04_FEM, AGE004_MALE = AGE04_MALE, AGE0509_MALE = AGE59_MALE, AGE0509_FEM = AGE59_FEM)
@@ -73,20 +54,8 @@ pop_age_gender <- pop_age_gender %>%
   mutate(PERCENTAGE = POP/POPESTIMATE)
 pop_age_gender <- pop_age_gender %>%
   mutate(GENDER = as.factor(ifelse(grepl('MALE', pop_age_gender$DEMO),1,2)))
-```
 
-## Age & Gender
-```{r, fig.height = 6, fig.width= 10}
-x_label <- c('Under 5 Female', 'Under 5 Male', '05-09 Female', '05-09 Male', '10-14 Female', '10-14 Male', '15-19 Female', '15-19 Male', '20-24 Female', '20-24 Male', '25-29 Female', '25-29 Male', '30-34 Female', '30-34 Male', '35-39 Female', '35-39 Male', '40-44 Female', '40-44 Male', '45-49 Female', '45-49 Male', '50-54 Female', '50-54 Male', '55-59 Female', '55-59 Male', '60-64 Female', '60-64 Male', '65-69 Female', '65-69 Male', '70-74 Female', '70-74 Male', '75-79 Female', '75-79 Male', '80-84 Female', '80-84 Male', '85 and over Female', '85 and over Male')
-ggplot(data = pop_age_gender %>% filter(YEAR == 2017, CTYNAME == 'Charlotte Region')) +
-  geom_col(aes(x = DEMO, y = PERCENTAGE, fill = GENDER), show.legend = F) +
-  scale_x_discrete(labels = x_label) +
-  scale_y_continuous(limits = c(0,0.05), breaks = seq(from = 0, to = 0.05, by = 0.01), labels = scales::percent) +
-  coord_flip() +
-  theme_minimal()
-```
-
-```{r}
+# Making ethnicity data frame
 ethpop <- rbind(read_csv("cc-est2019-alldata-37.csv", show_col_types = F),
                    read_csv("cc-est2019-alldata-45.csv", show_col_types = F)) %>%
   mutate(CTYNAME = gsub(' County', '', CTYNAME),
@@ -103,18 +72,10 @@ ethpop <- rbind(read_csv("cc-est2019-alldata-37.csv", show_col_types = F),
          !(STNAME == 'South Carolina' & CTYNAME == 'Union')) %>%
   select(STNAME, CTYNAME, YEAR, TOT_POP, WHITE, BLACK, HISPANIC, ASIAN, ISLANDER, NATIVE, MULTIRACIAL) %>%
   distinct()
-
 ethpop <- ethpop %>%
   pivot_longer(cols = colnames(ethpop[,5:11]), names_to = 'ETHNICITY', values_to = 'POP')
 
-ggplot(data = ethpop %>% filter(YEAR == 2019))+
-  geom_col(aes(x = CTYNAME, y = POP, fill = ETHNICITY), position = 'fill') +
-  scale_y_continuous(labels = scales::percent) +
-  coord_flip()
-```
-
-```{r}
-foreign_detail <- c('Foreign-Born: Africa', 'Foreign-Born: Asia', 'Foreign-Born: Europe', 'Foreign-Born: Latin America', 'Place of Birth Total')
+# Making place of birth data frame
 birthplace <- read.csv('Values.csv') %>%
   mutate(County = gsub(' County, North Carolina', '', County),
          County = gsub(' County, South Carolina', '', County)) %>%
@@ -123,6 +84,127 @@ birthplace <- read.csv('Values.csv') %>%
          !(Measure %in% foreign_detail)) %>%
   distinct()
 birthplace <- birthplace %>% inner_join((birthplace %>% group_by(County, Year) %>% summarise(Total = sum(Numerator_value))), by = c('County', 'Year'))
+
+# Making the unemployment data frame
+unemployment <- rbind(read_excel('ur_anson.xlsx', trim_ws = T) %>% mutate(County = 'Anson', Period = gsub('M', '', Period)),
+                      read_excel('ur_cabarrus.xlsx', trim_ws = T) %>% mutate(County = 'Cabarrus', Period = gsub('M', '', Period)),
+                      read_excel('ur_catawba.xlsx', trim_ws = T) %>% mutate(County = 'Catawba', Period = gsub('M', '', Period)),
+                      read_excel('ur_cleveland.xlsx', trim_ws = T) %>% mutate(County = 'Cleveland', Period = gsub('M', '', Period)),
+                      read_excel('ur_gaston.xlsx', trim_ws = T) %>% mutate(County = 'Gaston', Period = gsub('M', '', Period)),
+                      read_excel('ur_iredell.xlsx', trim_ws = T) %>% mutate(County = 'Iredell', Period = gsub('M', '', Period)),
+                      read_excel('ur_lancaster.xlsx', trim_ws = T) %>% mutate(County = 'Lancaster', Period = gsub('M', '', Period)),
+                      read_excel('ur_lincoln.xlsx', trim_ws = T) %>% mutate(County = 'Lincoln', Period = gsub('M', '', Period)),
+                      read_excel('ur_mecklenburg.xlsx', trim_ws = T) %>% mutate(County = 'Mecklenburg', Period = gsub('M', '', Period)),
+                      read_excel('ur_rowan.xlsx', trim_ws = T) %>% mutate(County = 'Rowan', Period = gsub('M', '', Period)),
+                      read_excel('ur_union.xlsx', trim_ws = T) %>% mutate(County = 'Union', Period = gsub('M', '', Period)),
+                      read_excel('ur_york.xlsx', trim_ws = T) %>% mutate(County = 'York', Period = gsub('M', '', Period))) %>%
+  mutate(Year = as.integer(Year),
+         Period = as.integer(Period),
+         Date = as.Date(paste(Year,'-',Period, '-01', sep = '')),
+         Value = Value/100) %>%
+  rename(Month = Period,
+         Unemployment = Value)
+
+# Make income data frame
+income <- read.csv('Values.csv') %>%
+  mutate(County = gsub(' County, North Carolina', '', County),
+         County = gsub(' County, South Carolina', '', County)) %>%
+  filter(Indicator == 'Income & Earnings',
+         County %in% counties,
+         Measure != 'Household Income: Total') %>%
+  distinct()
+income <- income %>% inner_join((income %>% group_by(County, Year) %>% summarise(Total = sum(Numerator_value))), by = c('County', 'Year'))
+
+# Make education attainment data frame
+education <- read.csv('Values.csv') %>%
+  mutate(County = gsub(' County, North Carolina', '', County),
+         County = gsub(' County, South Carolina', '', County)) %>%
+  filter(Indicator == 'Educational Attainment',
+         County %in% counties,
+         Measure %in% attainment_lvl) %>%
+  distinct()
+education <- education %>% inner_join((education %>% group_by(County, Year) %>% summarise(Total = sum(Numerator_value))), by = c('County', 'Year')) %>%
+  mutate(Order = as.factor(case_when(
+    Measure == 'Highest Degree: Less than a High School Diploma' ~ 1,
+    Measure == 'Highest Degree: High School Diploma' ~ 2,
+    Measure == 'Highest Degree: Some College, No Degree' ~ 3,
+    Measure == "Highest Degree: Associate's Degree" ~ 4,
+    Measure == "Highest Degree: Bachelor's Degree" ~ 5,
+    Measure == "Highest Degree: Graduate or Professional Degree" ~ 6)))
+# Make health care coverage data frame
+coverage <- read.csv('Values.csv') %>%
+  mutate(County = gsub(' County, North Carolina', '', County),
+         County = gsub(' County, South Carolina', '', County)) %>%
+  filter(Indicator == 'Health Care Coverage',
+         County %in% counties)
+# Make housing age data frame
+housing <- read.csv('Values.csv') %>%
+  mutate(County = gsub(' County, North Carolina', '', County),
+         County = gsub(' County, South Carolina', '', County)) %>%
+  filter(Indicator == 'Housing Stock',
+         County %in% counties)
+# Make poverty figures data frame
+poverty <- read.csv('Values.csv') %>%
+  mutate(County = gsub(' County, North Carolina', '', County),
+         County = gsub(' County, South Carolina', '', County)) %>%
+  filter(Measure == 'Individuals in Poverty',
+         Theme == 'Social Well-Being',
+         County %in% counties)
+# Make transportation means data frame
+transportation <- read.csv('Values.csv') %>%
+  mutate(County = gsub(' County, North Carolina', '', County),
+         County = gsub(' County, South Carolina', '', County)) %>%
+  filter(Theme == 'Transportation',
+         Measure != 'Commuting Means Total',
+         County %in% counties)
+```
+
+
+# Demographics
+## Population
+```{r}
+ggplot(data = countypop %>% filter(YEAR == 2019)) +
+  geom_col(aes(CTYNAME, POPESTIMATE, fill = CTYNAME), show.legend = F) +
+  scale_y_continuous(labels = comma) +
+  scale_fill_manual(values = cbPalette) +
+  coord_flip()
+ggplot(data = countypop) +
+  geom_line(aes(YEAR, POPESTIMATE, color = CTYNAME)) +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(breaks = pretty_breaks()) +
+  scale_color_manual(values = cbPalette)
+ggplot(data = countypop) +
+  geom_line(aes(YEAR, CHANGE, color = CTYNAME), size = 1.5) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_x_continuous(breaks = pretty_breaks()) +
+  scale_color_manual(values = cbPalette)
+ggplot(data = countypop %>% filter(CTYNAME == 'Anson')) +
+  geom_line(aes(YEAR, CHANGE, color = CTYNAME), size = 2) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_x_continuous(breaks = pretty_breaks()) +
+  scale_color_manual(values = cbPalette)
+```
+
+## Age & Gender
+```{r, fig.height = 6, fig.width= 10}
+ggplot(data = pop_age_gender %>% filter(YEAR == 2017, CTYNAME == 'Charlotte Region')) +
+  geom_col(aes(x = DEMO, y = PERCENTAGE, fill = GENDER), show.legend = F) +
+  scale_x_discrete(labels = x_label) +
+  scale_y_continuous(limits = c(0,0.05), breaks = seq(from = 0, to = 0.05, by = 0.01), labels = scales::percent) +
+  coord_flip() +
+  theme_minimal()
+```
+
+## Race & Ethnicity
+```{r}
+ggplot(data = ethpop %>% filter(YEAR == 2019))+
+  geom_col(aes(x = CTYNAME, y = POP, fill = ETHNICITY), position = 'fill') +
+  scale_y_continuous(labels = scales::percent) +
+  coord_flip()
+```
+
+## Place of Birth
+```{r}
 ggplot(birthplace %>% filter(Year == 2014), aes(x = County, y = (Numerator_value / Total), fill = Measure), position = 'fill') +
   geom_col() +
   scale_y_continuous(labels = scales::percent) +
@@ -131,37 +213,90 @@ ggplot(birthplace %>% filter(Year == 2014), aes(x = County, y = (Numerator_value
 
 
 
-```{r}
-employment_columns <- c('LAUS_Code', 'State_FIPS', 'County_FIPS', 'County_Name', 'Year', '', 'Labor_Force', 'Employed', 'Unemployed', 'Unemployment_Rate')
-employment <- rbind(read_xlsx('laucnty10.xlsx', col_names = employment_columns),
-                    read_xlsx('laucnty11.xlsx', col_names = employment_columns),
-                    read_xlsx('laucnty12.xlsx', col_names = employment_columns),
-                    read_xlsx('laucnty13.xlsx', col_names = employment_columns),
-                    read_xlsx('laucnty14.xlsx', col_names = employment_columns),
-                    read_xlsx('laucnty15.xlsx', col_names = employment_columns),
-                    read_xlsx('laucnty16.xlsx', col_names = employment_columns),
-                    read_xlsx('laucnty17.xlsx', col_names = employment_columns),
-                    read_xlsx('laucnty18.xlsx', col_names = employment_columns),
-                    read_xlsx('laucnty19.xlsx', col_names = employment_columns),
-                    read_xlsx('laucnty20.xlsx', col_names = employment_columns)) %>%
-  filter(State_FIPS == 37| State_FIPS == 45)
-employment <- employment %>%
-  mutate(County_Name = gsub(' County, NC', '', employment$County_Name))
-employment <- employment %>%
-  mutate(County_Name = gsub(' County, SC', '', employment$County_Name)) %>%
-  filter(!(State_FIPS == 45 & County_Name == 'Union') & County_Name %in% counties)
-```
 
+
+
+
+
+
+
+
+
+
+
+
+
+# Economy
+## Unemployment
 ```{r}
-ggplot(data = employment %>% filter(Year == 2019))+
-  geom_col(aes(x = County_Name, y = Unemployment_Rate, fill = County_Name)) +
+ggplot(unemployment) +
+  geom_line(aes(x = Date, y = Unemployment, color = County))
+
+ggplot(unemployment %>% filter(Year == 2015, Month == 6)) +
+  geom_col(aes(x = County, y = Unemployment, fill = County)) +
   coord_flip()
 ```
 
+## Income
+```{r}
+ggplot(income %>% filter(Year == 2014), aes(x = County, y = (Numerator_value / Total), fill = Measure), position = 'fill') +
+  geom_col() +
+  scale_y_continuous(labels = scales::percent) +
+  coord_flip()
+```
+
+# Education
+## Educational Attainment
+```{r}
+ggplot(arrange(education, Order) %>% filter(Year == 2014), aes(x = County, y = (Numerator_value / Total), fill = Order), position = 'fill') +
+  geom_col() +
+  scale_y_continuous(labels = scales::percent) +
+  coord_flip()+
+  scale_fill_discrete(labels = attainment_lvl, name = '')
+```
 
 
 
-
+# Health
+## Health Care Coverage
+```{r}
+coverage %>% filter(Measure == "Health Insurance Total", Year == 2017) %>%
+  ggplot(., aes(x = County, y = Numerator_value, fill = County))+
+  geom_col() +
+  scale_y_continuous(labels = comma) +
+  coord_flip()
+coverage %>% filter(Year == 2017, !(Measure %in% c("Health Insurance Total", "People with Health Insurance"))) %>%
+  ggplot(aes(x = County, y = Numerator_value, fill = Measure, position = Measure)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = comma) +
+  coord_flip()
+```
+# Housing
+## Housing Age
+```{r}
+housing %>% filter(Year == 2017) %>%
+  ggplot(aes(x= County, y = Year-Numerator_value, fill = County)) +
+  geom_col() +
+  coord_flip()
+```
+# Social Well-Being
+## Poverty
+```{r}
+poverty %>% filter(Year == 2010) %>%
+  ggplot(., aes(x = County, y = Numerator_value/Denominator_value, fill = County)) +
+  geom_col() +
+  coord_flip()
+```
+# Transportation
+##Commuting Modes
+```{r, eval=FALSE}
+# Way too many missing values to create a substantive visualization.
+transportation %>% filter(Year == 2014) %>%
+  ggplot(aes(x = County, y = Numerator_value, fill = Measure, position = Measure)) +
+  geom_col(position = 'dodge') +
+  scale_y_continuous(labels = comma) +
+  coord_flip()
+```
 
 
 
