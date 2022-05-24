@@ -255,8 +255,6 @@ ggplot(arrange(education, Order) %>% filter(Year == 2014), aes(x = County, y = (
   scale_fill_discrete(labels = attainment_lvl, name = '')
 ```
 
-
-
 # Health
 ## Health Care Coverage
 ```{r}
