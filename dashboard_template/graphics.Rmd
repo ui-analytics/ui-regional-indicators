@@ -169,11 +169,6 @@ ggplot(data = countypop %>% filter(YEAR == 2019)) +
   scale_fill_manual(values = cbPalette) +
   coord_flip()
 ggplot(data = countypop) +
-  geom_line(aes(YEAR, POPESTIMATE, color = CTYNAME)) +
-  scale_y_continuous(labels = comma) +
-  scale_x_continuous(breaks = pretty_breaks()) +
-  scale_color_manual(values = cbPalette)
-ggplot(data = countypop) +
   geom_line(aes(YEAR, CHANGE, color = CTYNAME), size = 1.5) +
   scale_y_continuous(labels = scales::percent) +
   scale_x_continuous(breaks = pretty_breaks()) +
