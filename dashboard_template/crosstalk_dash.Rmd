@@ -12,6 +12,7 @@ library(tidyverse)
 library(ggthemes)
 library(scales)
 library(readxl)
+library(plotly)
 ```
 
 
@@ -52,7 +53,13 @@ ggplot(data = countypop %>% filter(YEAR == 2019)) +
 ```
 
 ```{r}
+shared_pop <- SharedData$new(countypop)
 
+bscols(widths = c(3, NA),
+       list(
+         filter_slider('cp_year', 'Select Year', shared_pop, ~YEAR, sep=',', round = T, dragRange = F)),
+       plot_ly(shared_pop, x = ~CTYNAME, y = ~POPESTIMATE, type = 'bar')
+)
 ```
 
 
