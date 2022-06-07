@@ -1,6 +1,8 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 
@@ -57,7 +59,7 @@ shared_pop <- SharedData$new(countypop)
 
 bscols(widths = c(3, NA),
        list(
-         filter_slider('cp_year', 'Select Year', shared_pop, ~YEAR, sep=',', round = T, dragRange = F)),
+         filter_select('cp_year', label = 'Select Year', shared_pop, ~YEAR)),
        plot_ly(shared_pop, x = ~CTYNAME, y = ~POPESTIMATE, type = 'bar')
 )
 ```
