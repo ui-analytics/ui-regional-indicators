@@ -6,6 +6,7 @@ library(ggthemes)
 library(scales)
 library(readxl)
 library(shinydashboard)
+library(plotly)
 
 ################################ LOAD DATA ####################################
 cbPalette <- c('#000000', '#187898', '#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7', '#128409', '#6517A9', '#B91036', '8FB910', '#1029B9')
@@ -184,19 +185,14 @@ body <-
                                sliderTextInput('year1',
                                                'Select Year',
                                                choices = unique(countypop$YEAR),
-                                               grid = T)),
-                           box(height = 100,
-                               textOutput('text1'),
-                               verbatimTextOutput('pop_info')
-                               )),
+                                               grid = T))),
                          fluidRow(
-                           box(plotOutput('population',
+                           box(plotlyOutput('population',
                                           height = 600,
                                           width = 700)),
-                           box(plotOutput('popchange',
+                           box(plotlyOutput('popchange',
                                           height = 600,
-                                          width = 700,
-                                          hover = hoverOpts('poptip'))
+                                          width = 700)
                                ))),
                 tabPanel('Ethnicity',
                          fluidRow(
@@ -343,42 +339,18 @@ ui <- dashboardPage(header, sidebar, body, skin = 'green')
 
 server <- function(input, output, session) {
   
-  output$population <- renderPlot({
+  output$population <- renderPlotly({
     # generate bins based on input$bins from ui.R
-    ggplot(data = countypop %>% filter(YEAR == round(input$year1))) +
-      geom_col(aes(CTYNAME, POPESTIMATE, fill = CTYNAME), show.legend = F) +
-      scale_y_continuous(labels = comma, limits = c(0, max(countypop$POPESTIMATE))) +
-      ggtitle('Population by County') +
-      xlab('') +
-      ylab('Population') +
-      coord_flip()
+    plot_ly(countypop %>% filter(YEAR == input$year1),
+            x = ~POPESTIMATE, y = ~CTYNAME, type = 'bar',
+            color = ~CTYNAME, colors = color_a, orientation = 'h')
     
   })
-  output$popchange <- renderPlot({
-    ggplot(data = countypop) +
-      geom_line(aes(YEAR, CHANGE, color = CTYNAME), size = 1.5) +
-      scale_y_continuous(labels = scales::percent) +
-      scale_x_continuous(breaks = pretty_breaks()) +
-      scale_color_manual(values = cbPalette) +
-      theme(legend.title = element_blank(), legend.key.size = unit(1.25, 'cm')) +
-      ggtitle('Population Change Since Previous Year') +
-      xlab('') + ylab('')
+  output$popchange <- renderPlotly({
+    plot_ly(countypop, x=~YEAR, y=~CHANGE, type='scatter', mode='lines',
+            color=~CTYNAME, colors=color_a)
   })
   
-  output$text1 <- renderText({'Hover over the graph on the right for additional information.'})
-  
-  output$pop_info <- renderPrint({
-    if(!is.null(input$poptip)){
-      hover = input$poptip
-      dist = sqrt((hover$x-countypop$YEAR)^2+(hover$y-countypop$CHANGE)^2)
-      cat('\n')
-      if(min(dist) <3){
-        paste('County:', countypop$CTYNAME[which.min(dist)],
-              '| Population:', as.character(countypop$POPESTIMATE[which.min(dist)]),
-              '| Percentage Change from Previous Year:', as.character(round(countypop$CHANGE[which.min(dist)] * 100, 2)))
-      }
-    }
-  })
   output$ethnicity <- renderPlot({
     ggplot(data = ethpop %>% filter(YEAR == round(input$year2)))+
       geom_col(aes(x = CTYNAME, y = POP, fill = ETHNICITY), position = 'fill') +

@@ -9,13 +9,14 @@ library(tidyverse)
 library(ggthemes)
 library(scales)
 library(readxl)
+library(plotly)
 ```
 
 
 # Making Dataframes
 ```{r}
-cbPalette <- c('#000000', '#187898', '#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7', '#128409', '#6517A9', '#B91036', '8FB910', '#1029B9')
-x_label <- c('Under 5 Female', 'Under 5 Male', '05-09 Female', '05-09 Male', '10-14 Female', '10-14 Male', '15-19 Female', '15-19 Male', '20-24 Female', '20-24 Male', '25-29 Female', '25-29 Male', '30-34 Female', '30-34 Male', '35-39 Female', '35-39 Male', '40-44 Female', '40-44 Male', '45-49 Female', '45-49 Male', '50-54 Female', '50-54 Male', '55-59 Female', '55-59 Male', '60-64 Female', '60-64 Male', '65-69 Female', '65-69 Male', '70-74 Female', '70-74 Male', '75-79 Female', '75-79 Male', '80-84 Female', '80-84 Male', '85 and over Female', '85 and over Male')
+color_a <- c("#58b5e1","#1c5b5a","#46ebdc","#1f4196","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#b7d165","#30d52e","#ff5357")
+color_na <- c("#1c5b5a","#46ebdc","#1f4196","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#b7d165","#30d52e","#ff5357")
 counties <- c('Anson', 'Cabarrus', 'Catawba', 'Chester', 'Cleveland', 'Gaston', 'Iredell', 'Lancaster', 'Lincoln', 'Mecklenburg', 'Rowan', 'Stanly', 'Union', 'York')
 attainment_lvl <- c('Highest Degree: Less than a High School Diploma', 'Highest Degree: High School Diploma', 'Highest Degree: Some College, No Degree', "Highest Degree: Associate's Degree", "Highest Degree: Bachelor's Degree", "Highest Degree: Graduate or Professional Degree")
 foreign_detail <- c('Foreign-Born: Africa', 'Foreign-Born: Asia', 'Foreign-Born: Europe', 'Foreign-Born: Latin America', 'Place of Birth Total')
@@ -53,7 +54,27 @@ pop_age_gender <- pop_age_gender %>%
   pivot_longer(cols = colnames(pop_age_gender[,5:40]), names_to = 'DEMO', values_to = 'POP') %>%
   mutate(PERCENTAGE = POP/POPESTIMATE)
 pop_age_gender <- pop_age_gender %>%
-  mutate(GENDER = as.factor(ifelse(grepl('MALE', pop_age_gender$DEMO),1,2)))
+  mutate(GENDER = as.factor(ifelse(grepl('MALE', pop_age_gender$DEMO),'MALE','FEMALE')),
+         DEMO = gsub('_FEM','', DEMO),
+         DEMO = gsub('_MALE','', DEMO),
+         DEMO = case_when(DEMO == 'AGE004' ~ '0-04',
+                          DEMO == 'AGE0509' ~ '05-09',
+                          DEMO == 'AGE1014' ~ '10-14',
+                          DEMO == 'AGE1519' ~ '15-19',
+                          DEMO == 'AGE2024' ~ '20-24',
+                          DEMO == 'AGE2529' ~ '25-29',
+                          DEMO == 'AGE3034' ~ '30-34',
+                          DEMO == 'AGE3539' ~ '35-39',
+                          DEMO == 'AGE4044' ~ '40-44',
+                          DEMO == 'AGE4549' ~ '45-49',
+                          DEMO == 'AGE5054' ~ '50-54',
+                          DEMO == 'AGE5559' ~ '55-59',
+                          DEMO == 'AGE6064' ~ '60-64',
+                          DEMO == 'AGE6569' ~ '65-69',
+                          DEMO == 'AGE7074' ~ '70-74',
+                          DEMO == 'AGE7579' ~ '75-79',
+                          DEMO == 'AGE8084' ~ '80-84',
+                          DEMO == 'AGE85PLUS' ~ '85 and Over'))
 
 # Making ethnicity data frame
 ethpop <- rbind(read_csv("cc-est2019-alldata-37.csv", show_col_types = F),
@@ -163,77 +184,51 @@ transportation <- read.csv('Values.csv') %>%
 # Demographics
 ## Population
 ```{r}
-ggplot(data = countypop %>% filter(YEAR == 2019)) +
-  geom_col(aes(CTYNAME, POPESTIMATE, fill = CTYNAME), show.legend = F) +
-  scale_y_continuous(labels = comma) +
-  scale_fill_manual(values = cbPalette) +
-  coord_flip()
-ggplot(data = countypop) +
-  geom_line(aes(YEAR, CHANGE, color = CTYNAME), size = 1.5) +
-  scale_y_continuous(labels = scales::percent) +
-  scale_x_continuous(breaks = pretty_breaks()) +
-  scale_color_manual(values = cbPalette)
-ggplot(data = countypop %>% filter(CTYNAME == 'Anson')) +
-  geom_line(aes(YEAR, CHANGE, color = CTYNAME), size = 2) +
-  scale_y_continuous(labels = scales::percent) +
-  scale_x_continuous(breaks = pretty_breaks()) +
-  scale_color_manual(values = cbPalette)
+plot_ly(countypop %>% filter(YEAR == 2019), x = ~POPESTIMATE, y = ~CTYNAME, type = 'bar', color = ~CTYNAME, colors = color_a, orientation = 'h')
+
+plot_ly(countypop, x=~YEAR, y=~CHANGE, color=~CTYNAME, type='scatter', mode='lines', colors=color_a)
 ```
 
 ## Age & Gender
 ```{r, fig.height = 6, fig.width= 10}
-ggplot(data = pop_age_gender %>% filter(YEAR == 2017, CTYNAME == 'Charlotte Region')) +
-  geom_col(aes(x = DEMO, y = PERCENTAGE, fill = GENDER), show.legend = F) +
-  scale_x_discrete(labels = x_label) +
-  scale_y_continuous(limits = c(0,0.05), breaks = seq(from = 0, to = 0.05, by = 0.01), labels = scales::percent) +
-  coord_flip() +
-  theme_minimal()
+plot_ly(pop_age_gender %>% filter(YEAR == 2017, CTYNAME == 'Charlotte Region', GENDER == "MALE"),
+        y=~DEMO, x=~PERCENTAGE,
+        type='bar', name = 'Male') %>%
+  add_trace(data = pop_age_gender %>% filter(YEAR == 2017, CTYNAME == 'Charlotte Region', GENDER == "FEMALE"), y=~DEMO, name = 'Female')
 ```
 
 ## Race & Ethnicity
 ```{r}
-ggplot(data = ethpop %>% filter(YEAR == 2019))+
-  geom_col(aes(x = CTYNAME, y = POP, fill = ETHNICITY), position = 'fill') +
-  scale_y_continuous(labels = scales::percent) +
-  coord_flip()
+plot_ly(ethpop %>% filter(YEAR == 2019),
+        y=~CTYNAME, x=~POP/TOT_POP, color=~ETHNICITY,
+        type='bar') %>%
+  layout(barmode = 'stack')
 ```
 
 ## Place of Birth
 ```{r}
-ggplot(birthplace %>% filter(Year == 2014), aes(x = County, y = (Numerator_value / Total), fill = Measure), position = 'fill') +
-  geom_col() +
-  scale_y_continuous(labels = scales::percent) +
-  coord_flip()
+plot_ly(birthplace %>% filter(Year == 2019),
+        y=~County, x=~Numerator_value/Total, color=~Measure,
+        type='bar') %>%
+  layout(barmode = 'stack')
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
 # Economy
 ## Unemployment
 ```{r}
+#### GO TO EXCEL SOURCE AND PULL DATA FOR CHESTER and STANLY
 ggplot(unemployment) +
   geom_line(aes(x = Date, y = Unemployment, color = County))
 
 ggplot(unemployment %>% filter(Year == 2015, Month == 6)) +
-  geom_col(aes(x = County, y = Unemployment, fill = County)) +
-  coord_flip()
+  geom_col(aes(x = County, y = Unemployment, fill = County)) + coord_flip()
 ```
 
 ## Income
 ```{r}
+#### DFs from Values.csv are missing Anson, Chester, and Stanly Counties
 ggplot(income %>% filter(Year == 2014), aes(x = County, y = (Numerator_value / Total), fill = Measure), position = 'fill') +
   geom_col() +
   scale_y_continuous(labels = scales::percent) +

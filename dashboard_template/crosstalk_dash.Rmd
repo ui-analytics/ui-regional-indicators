@@ -20,7 +20,8 @@ library(plotly)
 
 # Making Dataframes
 ```{r}
-cbPalette <- c('#000000', '#187898', '#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7', '#128409', '#6517A9', '#B91036', '8FB910', '#1029B9')
+color_a <- c("#58b5e1","#1c5b5a","#46ebdc","#1f4196","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#b7d165","#30d52e","#ff5357")
+color_na <- c("#1c5b5a","#46ebdc","#1f4196","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#b7d165","#30d52e","#ff5357")
 x_label <- c('Under 5 Female', 'Under 5 Male', '05-09 Female', '05-09 Male', '10-14 Female', '10-14 Male', '15-19 Female', '15-19 Male', '20-24 Female', '20-24 Male', '25-29 Female', '25-29 Male', '30-34 Female', '30-34 Male', '35-39 Female', '35-39 Male', '40-44 Female', '40-44 Male', '45-49 Female', '45-49 Male', '50-54 Female', '50-54 Male', '55-59 Female', '55-59 Male', '60-64 Female', '60-64 Male', '65-69 Female', '65-69 Male', '70-74 Female', '70-74 Male', '75-79 Female', '75-79 Male', '80-84 Female', '80-84 Male', '85 and over Female', '85 and over Male')
 counties <- c('Anson', 'Cabarrus', 'Catawba', 'Chester', 'Cleveland', 'Gaston', 'Iredell', 'Lancaster', 'Lincoln', 'Mecklenburg', 'Rowan', 'Stanly', 'Union', 'York')
 attainment_lvl <- c('Highest Degree: Less than a High School Diploma', 'Highest Degree: High School Diploma', 'Highest Degree: Some College, No Degree', "Highest Degree: Associate's Degree", "Highest Degree: Bachelor's Degree", "Highest Degree: Graduate or Professional Degree")
@@ -55,13 +56,8 @@ ggplot(data = countypop %>% filter(YEAR == 2019)) +
 ```
 
 ```{r}
-shared_pop <- SharedData$new(countypop)
-
-bscols(widths = c(3, NA),
-       list(
-         filter_select('cp_year', label = 'Select Year', shared_pop, ~YEAR)),
-       plot_ly(shared_pop, x = ~CTYNAME, y = ~POPESTIMATE, type = 'bar')
-)
+fig <- plot_ly(countypop %>% filter(YEAR == 2019), x = ~POPESTIMATE, y = ~CTYNAME, type = 'bar', color = ~CTYNAME, colors = color_a, orientation = 'h')
+fig
 ```
 
 
