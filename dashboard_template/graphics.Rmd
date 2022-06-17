@@ -16,7 +16,7 @@ library(plotly)
 # Making Dataframes
 ```{r}
 color_a <- c("#58b5e1","#1c5b5a","#46ebdc","#1f4196","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#b7d165","#30d52e","#ff5357")
-color_na <- c("#1c5b5a","#46ebdc","#1f4196","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#b7d165","#30d52e","#ff5357")
+color_na <- c("#1c5b5a","#46ebdc","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#30d52e","#ff5357")
 counties <- c('Anson', 'Cabarrus', 'Catawba', 'Chester', 'Cleveland', 'Gaston', 'Iredell', 'Lancaster', 'Lincoln', 'Mecklenburg', 'Rowan', 'Stanly', 'Union', 'York')
 attainment_lvl <- c('Highest Degree: Less than a High School Diploma', 'Highest Degree: High School Diploma', 'Highest Degree: Some College, No Degree', "Highest Degree: Associate's Degree", "Highest Degree: Bachelor's Degree", "Highest Degree: Graduate or Professional Degree")
 foreign_detail <- c('Foreign-Born: Africa', 'Foreign-Born: Asia', 'Foreign-Born: Europe', 'Foreign-Born: Latin America', 'Place of Birth Total')
@@ -110,6 +110,7 @@ birthplace <- birthplace %>% inner_join((birthplace %>% group_by(County, Year) %
 unemployment <- rbind(read_excel('ur_anson.xlsx', trim_ws = T) %>% mutate(County = 'Anson', Period = gsub('M', '', Period)),
                       read_excel('ur_cabarrus.xlsx', trim_ws = T) %>% mutate(County = 'Cabarrus', Period = gsub('M', '', Period)),
                       read_excel('ur_catawba.xlsx', trim_ws = T) %>% mutate(County = 'Catawba', Period = gsub('M', '', Period)),
+                      read_excel('ur_chester.xlsx', trim_ws=T, skip=11)[1:266,] %>% rename(Value = 'Observation Value') %>% mutate(County = 'Chester', Period = gsub('M','',Period)) %>% select(-Label),
                       read_excel('ur_cleveland.xlsx', trim_ws = T) %>% mutate(County = 'Cleveland', Period = gsub('M', '', Period)),
                       read_excel('ur_gaston.xlsx', trim_ws = T) %>% mutate(County = 'Gaston', Period = gsub('M', '', Period)),
                       read_excel('ur_iredell.xlsx', trim_ws = T) %>% mutate(County = 'Iredell', Period = gsub('M', '', Period)),
@@ -117,6 +118,7 @@ unemployment <- rbind(read_excel('ur_anson.xlsx', trim_ws = T) %>% mutate(County
                       read_excel('ur_lincoln.xlsx', trim_ws = T) %>% mutate(County = 'Lincoln', Period = gsub('M', '', Period)),
                       read_excel('ur_mecklenburg.xlsx', trim_ws = T) %>% mutate(County = 'Mecklenburg', Period = gsub('M', '', Period)),
                       read_excel('ur_rowan.xlsx', trim_ws = T) %>% mutate(County = 'Rowan', Period = gsub('M', '', Period)),
+                      read_excel('ur_stanly.xlsx', trim_ws=T, skip=11)[1:266,] %>% rename(Value = 'Observation Value') %>% mutate(County = 'Stanly', Period = gsub('M','',Period)) %>% select(-Label),
                       read_excel('ur_union.xlsx', trim_ws = T) %>% mutate(County = 'Union', Period = gsub('M', '', Period)),
                       read_excel('ur_york.xlsx', trim_ws = T) %>% mutate(County = 'York', Period = gsub('M', '', Period))) %>%
   mutate(Year = as.integer(Year),
@@ -218,12 +220,9 @@ plot_ly(birthplace %>% filter(Year == 2019),
 # Economy
 ## Unemployment
 ```{r}
-#### GO TO EXCEL SOURCE AND PULL DATA FOR CHESTER and STANLY
-ggplot(unemployment) +
-  geom_line(aes(x = Date, y = Unemployment, color = County))
+plot_ly(unemployment, x=~Date, y=~Unemployment, color=~County, colors=color_a, type='scatter', mode='lines')
 
-ggplot(unemployment %>% filter(Year == 2015, Month == 6)) +
-  geom_col(aes(x = County, y = Unemployment, fill = County)) + coord_flip()
+plot_ly(unemployment %>% filter(Year==2015, Month==6), x=~Unemployment, y=~County, color=~County, colors=color_a, type='bar')
 ```
 
 ## Income
