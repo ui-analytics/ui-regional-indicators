@@ -147,13 +147,15 @@ education <- read.csv('Values.csv') %>%
          Measure %in% attainment_lvl) %>%
   distinct()
 education <- education %>% inner_join((education %>% group_by(County, Year) %>% summarise(Total = sum(Numerator_value))), by = c('County', 'Year')) %>%
-  mutate(Order = as.factor(case_when(
-    Measure == 'Highest Degree: Less than a High School Diploma' ~ 1,
-    Measure == 'Highest Degree: High School Diploma' ~ 2,
-    Measure == 'Highest Degree: Some College, No Degree' ~ 3,
-    Measure == "Highest Degree: Associate's Degree" ~ 4,
-    Measure == "Highest Degree: Bachelor's Degree" ~ 5,
-    Measure == "Highest Degree: Graduate or Professional Degree" ~ 6)))
+  mutate(
+    Order = as.factor(case_when(
+      Measure == 'Highest Degree: Less than a High School Diploma' ~ 1,
+      Measure == 'Highest Degree: High School Diploma' ~ 2,
+      Measure == 'Highest Degree: Some College, No Degree' ~ 3,
+      Measure == "Highest Degree: Associate's Degree" ~ 4,
+      Measure == "Highest Degree: Bachelor's Degree" ~ 5,
+      Measure == "Highest Degree: Graduate or Professional Degree" ~ 6)),
+    Measure = gsub("Highest Degree: ","",Measure))
 # Make health care coverage data frame
 coverage <- read.csv('Values.csv') %>%
   mutate(County = gsub(' County, North Carolina', '', County),
@@ -163,7 +165,8 @@ coverage <- read.csv('Values.csv') %>%
 # Make housing age data frame
 housing <- read.csv('Values.csv') %>%
   mutate(County = gsub(' County, North Carolina', '', County),
-         County = gsub(' County, South Carolina', '', County)) %>%
+         County = gsub(' County, South Carolina', '', County),
+         diff = Year-Numerator_value) %>%
   filter(Indicator == 'Housing Stock',
          County %in% counties)
 # Make poverty figures data frame
@@ -192,11 +195,10 @@ plot_ly(countypop, x=~YEAR, y=~CHANGE, color=~CTYNAME, type='scatter', mode='lin
 ```
 
 ## Age & Gender
-```{r, fig.height = 6, fig.width= 10}
-plot_ly(pop_age_gender %>% filter(YEAR == 2017, CTYNAME == 'Charlotte Region', GENDER == "MALE"),
+```{r, fig.height = 6, fig.width= 10, warning=FALSE}
+plot_ly(pop_age_gender %>% filter(YEAR == 2017, CTYNAME == 'Charlotte Region'),
         y=~DEMO, x=~PERCENTAGE,
-        type='bar', name = 'Male') %>%
-  add_trace(data = pop_age_gender %>% filter(YEAR == 2017, CTYNAME == 'Charlotte Region', GENDER == "FEMALE"), y=~DEMO, name = 'Female')
+        type='bar', color=~GENDER)
 ```
 
 ## Race & Ethnicity
@@ -225,38 +227,41 @@ plot_ly(unemployment, x=~Date, y=~Unemployment, color=~County, colors=color_a, t
 plot_ly(unemployment %>% filter(Year==2015, Month==6), x=~Unemployment, y=~County, color=~County, colors=color_a, type='bar')
 ```
 
+################   6/21 Up to this point has been done in the shiny app  ######################
+
+
 ## Income
 ```{r}
 #### DFs from Values.csv are missing Anson, Chester, and Stanly Counties
-ggplot(income %>% filter(Year == 2014), aes(x = County, y = (Numerator_value / Total), fill = Measure), position = 'fill') +
-  geom_col() +
-  scale_y_continuous(labels = scales::percent) +
-  coord_flip()
+plot_ly(income %>% filter(Year == 2014), y=~County, x=~(Numerator_value/Total), color=~Measure, type='bar') %>%
+  layout(barmode='stack')
 ```
 
 # Education
 ## Educational Attainment
 ```{r}
-ggplot(arrange(education, Order) %>% filter(Year == 2014), aes(x = County, y = (Numerator_value / Total), fill = Order), position = 'fill') +
-  geom_col() +
-  scale_y_continuous(labels = scales::percent) +
-  coord_flip()+
-  scale_fill_discrete(labels = attainment_lvl, name = '')
+plot_ly(education %>% group_by(Year, Measure, County) %>%
+  summarise(Numerator = sum(Numerator_value),
+            Denominator = mean(Total)) %>% filter(Year == 2018, Measure == 'High School Diploma'), y=~County, color=~County, colors=color_na, x=~(Numerator/Denominator), type='bar')
 ```
 
 # Health
 ## Health Care Coverage
-```{r}
-coverage %>% filter(Measure == "Health Insurance Total", Year == 2017) %>%
-  ggplot(., aes(x = County, y = Numerator_value, fill = County))+
-  geom_col() +
-  scale_y_continuous(labels = comma) +
-  coord_flip()
-coverage %>% filter(Year == 2017, !(Measure %in% c("Health Insurance Total", "People with Health Insurance"))) %>%
-  ggplot(aes(x = County, y = Numerator_value, fill = Measure, position = Measure)) +
-  geom_col(position = "dodge") +
-  scale_y_continuous(labels = comma) +
-  coord_flip()
+```{r, warning=FALSE}
+plot_ly(coverage %>% filter(Measure == "Health Insurance Total", Year == 2017),
+        y=~County, x=~Numerator_value, color=~County, colors=color_na, type='bar')
+
+plot_ly(coverage %>%
+         group_by(Year, County, Measure) %>%
+         summarise(added=sum(Numerator_value)) %>%
+         filter(Year==2016, !(Measure %in% c("Health Insurance Total"))),
+       y=~County, x=~added, type='bar', color=~Measure)
+
+plot_ly(coverage %>%
+         group_by(Year, County, Measure) %>%
+         summarise(added=sum(Numerator_value)) %>%
+         filter(Year==2016, Measure=='Children without Health Insurance'),
+       y=~County, x=~added, type='bar', color=~County, colors=color_na)
 ```
 # Housing
 ## Housing Age
@@ -265,14 +270,16 @@ housing %>% filter(Year == 2017) %>%
   ggplot(aes(x= County, y = Year-Numerator_value, fill = County)) +
   geom_col() +
   coord_flip()
+# axis is giving double the true value
+plot_ly(housing %>% filter(Year == 2014), y=~County, x=~diff,
+        color=~County, colors=color_na, type='bar')
 ```
 # Social Well-Being
 ## Poverty
 ```{r}
-poverty %>% filter(Year == 2010) %>%
-  ggplot(., aes(x = County, y = Numerator_value/Denominator_value, fill = County)) +
-  geom_col() +
-  coord_flip()
+plot_ly(poverty %>% filter(Year==2014),
+        y=~County, x=~Numerator_value/Denominator_value,
+        color=~County, colors=color_na, type='bar')
 ```
 # Transportation
 ##Commuting Modes

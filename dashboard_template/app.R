@@ -9,7 +9,8 @@ library(shinydashboard)
 library(plotly)
 
 ################################ LOAD DATA ####################################
-cbPalette <- c('#000000', '#187898', '#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7', '#128409', '#6517A9', '#B91036', '8FB910', '#1029B9')
+color_a <- c("#58b5e1","#1c5b5a","#46ebdc","#1f4196","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#b7d165","#30d52e","#ff5357")
+color_na <- c("#1c5b5a","#46ebdc","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#30d52e","#ff5357")
 x_label <- c('Under 5 Female', 'Under 5 Male', '05-09 Female', '05-09 Male', '10-14 Female', '10-14 Male', '15-19 Female', '15-19 Male', '20-24 Female', '20-24 Male', '25-29 Female', '25-29 Male', '30-34 Female', '30-34 Male', '35-39 Female', '35-39 Male', '40-44 Female', '40-44 Male', '45-49 Female', '45-49 Male', '50-54 Female', '50-54 Male', '55-59 Female', '55-59 Male', '60-64 Female', '60-64 Male', '65-69 Female', '65-69 Male', '70-74 Female', '70-74 Male', '75-79 Female', '75-79 Male', '80-84 Female', '80-84 Male', '85 and over Female', '85 and over Male')
 counties <- c('Anson', 'Cabarrus', 'Catawba', 'Chester', 'Cleveland', 'Gaston', 'Iredell', 'Lancaster', 'Lincoln', 'Mecklenburg', 'Rowan', 'Stanly', 'Union', 'York')
 attainment_lvl <- c('Highest Degree: Less than a High School Diploma', 'Highest Degree: High School Diploma', 'Highest Degree: Some College, No Degree', "Highest Degree: Associate's Degree", "Highest Degree: Bachelor's Degree", "Highest Degree: Graduate or Professional Degree")
@@ -48,7 +49,27 @@ pop_age_gender <- pop_age_gender %>%
   pivot_longer(cols = colnames(pop_age_gender[,5:40]), names_to = 'DEMO', values_to = 'POP') %>%
   mutate(PERCENTAGE = POP/POPESTIMATE)
 pop_age_gender <- pop_age_gender %>%
-  mutate(GENDER = as.factor(ifelse(grepl('MALE', pop_age_gender$DEMO),1,2)))
+  mutate(GENDER = as.factor(ifelse(grepl('MALE', pop_age_gender$DEMO),'MALE','FEMALE')),
+         DEMO = gsub('_FEM','', DEMO),
+         DEMO = gsub('_MALE','', DEMO),
+         DEMO = case_when(DEMO == 'AGE004' ~ '0-04',
+                          DEMO == 'AGE0509' ~ '05-09',
+                          DEMO == 'AGE1014' ~ '10-14',
+                          DEMO == 'AGE1519' ~ '15-19',
+                          DEMO == 'AGE2024' ~ '20-24',
+                          DEMO == 'AGE2529' ~ '25-29',
+                          DEMO == 'AGE3034' ~ '30-34',
+                          DEMO == 'AGE3539' ~ '35-39',
+                          DEMO == 'AGE4044' ~ '40-44',
+                          DEMO == 'AGE4549' ~ '45-49',
+                          DEMO == 'AGE5054' ~ '50-54',
+                          DEMO == 'AGE5559' ~ '55-59',
+                          DEMO == 'AGE6064' ~ '60-64',
+                          DEMO == 'AGE6569' ~ '65-69',
+                          DEMO == 'AGE7074' ~ '70-74',
+                          DEMO == 'AGE7579' ~ '75-79',
+                          DEMO == 'AGE8084' ~ '80-84',
+                          DEMO == 'AGE85PLUS' ~ '85 and Over'))
 
 # Making ethnicity data frame
 ethpop <- rbind(read_csv("cc-est2019-alldata-37.csv", show_col_types = F),
@@ -84,6 +105,7 @@ birthplace <- birthplace %>% inner_join((birthplace %>% group_by(County, Year) %
 unemployment <- rbind(read_excel('ur_anson.xlsx', trim_ws = T) %>% mutate(County = 'Anson', Period = gsub('M', '', Period)),
                       read_excel('ur_cabarrus.xlsx', trim_ws = T) %>% mutate(County = 'Cabarrus', Period = gsub('M', '', Period)),
                       read_excel('ur_catawba.xlsx', trim_ws = T) %>% mutate(County = 'Catawba', Period = gsub('M', '', Period)),
+                      read_excel('ur_chester.xlsx', trim_ws=T, skip=11)[1:266,] %>% rename(Value = 'Observation Value') %>% mutate(County = 'Chester', Period = gsub('M','',Period)) %>% select(-Label),
                       read_excel('ur_cleveland.xlsx', trim_ws = T) %>% mutate(County = 'Cleveland', Period = gsub('M', '', Period)),
                       read_excel('ur_gaston.xlsx', trim_ws = T) %>% mutate(County = 'Gaston', Period = gsub('M', '', Period)),
                       read_excel('ur_iredell.xlsx', trim_ws = T) %>% mutate(County = 'Iredell', Period = gsub('M', '', Period)),
@@ -91,6 +113,7 @@ unemployment <- rbind(read_excel('ur_anson.xlsx', trim_ws = T) %>% mutate(County
                       read_excel('ur_lincoln.xlsx', trim_ws = T) %>% mutate(County = 'Lincoln', Period = gsub('M', '', Period)),
                       read_excel('ur_mecklenburg.xlsx', trim_ws = T) %>% mutate(County = 'Mecklenburg', Period = gsub('M', '', Period)),
                       read_excel('ur_rowan.xlsx', trim_ws = T) %>% mutate(County = 'Rowan', Period = gsub('M', '', Period)),
+                      read_excel('ur_stanly.xlsx', trim_ws=T, skip=11)[1:266,] %>% rename(Value = 'Observation Value') %>% mutate(County = 'Stanly', Period = gsub('M','',Period)) %>% select(-Label),
                       read_excel('ur_union.xlsx', trim_ws = T) %>% mutate(County = 'Union', Period = gsub('M', '', Period)),
                       read_excel('ur_york.xlsx', trim_ws = T) %>% mutate(County = 'York', Period = gsub('M', '', Period))) %>%
   mutate(Year = as.integer(Year),
@@ -125,7 +148,8 @@ education <- education %>% inner_join((education %>% group_by(County, Year) %>% 
     Measure == 'Highest Degree: Some College, No Degree' ~ 3,
     Measure == "Highest Degree: Associate's Degree" ~ 4,
     Measure == "Highest Degree: Bachelor's Degree" ~ 5,
-    Measure == "Highest Degree: Graduate or Professional Degree" ~ 6)))
+    Measure == "Highest Degree: Graduate or Professional Degree" ~ 6)),
+    Measure = gsub("Highest Degree: ","",Measure))
 # Make health care coverage data frame
 coverage <- read.csv('Values.csv') %>%
   mutate(County = gsub(' County, North Carolina', '', County),
@@ -204,7 +228,7 @@ body <-
                                                grid = T)
                                )),
                          fluidRow(
-                           box(plotOutput('ethnicity', height = 600, width = 700)
+                           box(plotlyOutput('ethnicity', height = 600, width = 700)
                                ))),
                 tabPanel('Age',
                          fluidRow(
@@ -220,20 +244,33 @@ body <-
                                selectInput('county1',
                                            "Select Region",
                                            unique(pop_age_gender$CTYNAME),
+                                           selected='Charlotte Region',
                                            selectize = F)
                                )),
                          fluidRow(
-                           box(plotOutput('age',
+                           box(plotlyOutput('age',
                                           height = 600,
                                           width = 700)
-                               ))))),
+                               ))),
+                tabPanel('Place of Birth',
+                         fluidRow(
+                           box(width = 3,
+                               height = 100,
+                               sliderTextInput('year4',
+                                               'Select Year',
+                                               choices = unique(birthplace$Year),
+                                               grid=T)
+                               )),
+                         fluidRow(
+                           box(plotlyOutput('pob', height = 600, width = 700)
+                         ))))),
       tabItem(tabName = 'economy',
               tabsetPanel(
                 tabPanel('Unemployment',
                          fluidRow(
                            box(width = 3,
                                height = 100,
-                               sliderTextInput('year4',
+                               sliderTextInput('year5',
                                                'Select Year',
                                                choices = unique(unemployment$Year),
                                                grid = T)),
@@ -260,10 +297,10 @@ body <-
                                                choices = unique(unemployment$County))
                                )),
                          fluidRow(
-                           box(plotOutput('unemployment',
+                           box(plotlyOutput('unemployment',
                                           height = 600,
                                           width = 700)),
-                           box(plotOutput('unemploychange',
+                           box(plotlyOutput('unemploychange',
                                           height = 600,
                                           width = 700)
                                ))))),
@@ -273,7 +310,7 @@ body <-
                          fluidRow(
                            box(width = 3,
                                height = 100,
-                               sliderTextInput('year5',
+                               sliderTextInput('year6',
                                                'Select Year',
                                                choices = unique(education$Year),
                                                grid = T)
@@ -289,7 +326,7 @@ body <-
                          fluidRow(
                            box(width = 3,
                                height = 100,
-                               sliderTextInput('year6',
+                               sliderTextInput('year7',
                                                'Select Year',
                                                choices = unique(coverage$Year),
                                                grid = T)
@@ -308,7 +345,7 @@ body <-
                          fluidRow(
                            box(width = 3,
                                height = 100,
-                               sliderTextInput('year7',
+                               sliderTextInput('year8',
                                                'Select Year',
                                                choices = unique(coverage$Year),
                                                grid = T)
@@ -324,7 +361,7 @@ body <-
                          fluidRow(
                            box(width = 3,
                                height = 100,
-                               sliderTextInput('year8',
+                               sliderTextInput('year9',
                                                'Select Year',
                                                choices = unique(coverage$Year),
                                                grid = T)
@@ -351,50 +388,44 @@ server <- function(input, output, session) {
             color=~CTYNAME, colors=color_a)
   })
   
-  output$ethnicity <- renderPlot({
-    ggplot(data = ethpop %>% filter(YEAR == round(input$year2)))+
-      geom_col(aes(x = CTYNAME, y = POP, fill = ETHNICITY), position = 'fill') +
-      theme(legend.title = element_blank()) +
-      scale_y_continuous(labels = scales::percent) +
-      coord_flip()+
-      xlab('') + ylab('') + 
-      ggtitle('Ethnicity Percentages by County')
+  output$ethnicity <- renderPlotly({
+    plot_ly(ethpop %>% filter(YEAR == input$year2),
+            y=~CTYNAME, x=~POP/TOT_POP, color=~ETHNICITY,
+            type='bar') %>%
+      layout(barmode = 'stack')
       
   })
-  output$age <- renderPlot({
-    ggplot(data = pop_age_gender %>% filter(YEAR == round(input$year3), CTYNAME == input$county1)) +
-      geom_col(aes(x = DEMO, y = PERCENTAGE, fill = GENDER), show.legend = F) +
-      scale_x_discrete(labels = x_label) +
-      scale_y_continuous(limits = c(0,0.05), breaks = seq(from = 0, to = 0.05, by = 0.01), labels = scales::percent) +
-      coord_flip() +
-      theme_minimal() +
-      xlab('') + ylab('') + 
-      ggtitle('Population Age by Gender')
+  output$age <- renderPlotly({
+    plot_ly(pop_age_gender %>% filter(YEAR == input$year3, CTYNAME == input$county1),
+            y=~DEMO, x=~PERCENTAGE,
+            type='bar', color=~GENDER)
+
   })
-  output$unemployment <- renderPlot({
-    # generate bins based on input$bins from ui.R
-    ggplot(data = unemployment %>% filter(Year == round(input$year4), Month == input$month)) +
-      geom_col(aes(County, Unemployment, fill = County)) +
-      scale_y_continuous(labels = scales::percent) +
-      coord_flip() +
-      xlab('') + ylab('') +
-      ggtitle('Unemployment Rate by County')
+  output$pob <- renderPlotly({
+    plot_ly(birthplace %>% filter(Year == input$year4),
+            y=~County, x=~Numerator_value/Total, color=~Measure,
+            type='bar') %>%
+      layout(barmode = 'stack')
     
   })
+  
+  output$unemployment <- renderPlotly({
+    # generate bins based on input$bins from ui.R
+    plot_ly(unemployment %>% filter(Year==input$year5, Month==input$month),
+            x=~Unemployment, y=~County, type='bar',
+            color=~County, colors=color_a)
 
-  output$unemploychange <- renderPlot({
-    ggplot(data = unemployment %>% filter(County == input$county2)) +
-      geom_line(aes(Date, Unemployment, color = County), size = 1.5, show.legend = F) +
-      scale_y_continuous(labels = scales::percent) +
-     # scale_x_continuous(breaks = pretty_breaks()) +
-      scale_color_manual(values = cbPalette) +
-      #theme(legend.title = element_blank(), legend.key.size = unit(1.5, 'cm')) +
-      xlab('Year') + ylab('') +
-      ggtitle('Unemployment Rate Over Time')
+  })
+
+  output$unemploychange <- renderPlotly({
+    plot_ly(unemployment %>% filter(County == input$county2),
+            x=~Date, y=~Unemployment, type='scatter', mode='lines',
+            color=~County, colors=color_a)
+
   })
   
   output$attainment <- renderPlot({
-    ggplot(arrange(education, Order) %>% filter(Year == round(input$year5)), aes(x = County, y = (Numerator_value / Total), fill = Order), position = 'fill') +
+    ggplot(arrange(education, Order) %>% filter(Year == round(input$year6)), aes(x = County, y = (Numerator_value / Total), fill = Order), position = 'fill') +
       geom_col() +
       scale_y_continuous(labels = scales::percent) +
       xlab('') + ylab('') +
@@ -404,7 +435,7 @@ server <- function(input, output, session) {
   })
   
   output$coverage <- renderPlot({
-    coverage %>% filter(Measure == "Health Insurance Total", Year == round(input$year6)) %>%
+    coverage %>% filter(Measure == "Health Insurance Total", Year == round(input$year7)) %>%
       ggplot(., aes(x = County, y = Numerator_value, fill = County))+
       geom_col() +
       xlab('') + ylab('') +
@@ -414,7 +445,7 @@ server <- function(input, output, session) {
   })
   
   output$nocoverage <- renderPlot({
-    coverage %>% filter(Year == round(input$year6), !(Measure %in% c("Health Insurance Total", "People with Health Insurance"))) %>%
+    coverage %>% filter(Year == round(input$year7), !(Measure %in% c("Health Insurance Total", "People with Health Insurance"))) %>%
       ggplot(aes(x = County, y = Numerator_value, fill = Measure, position = Measure)) +
       geom_col(position = "dodge") +
       xlab('') + ylab('') +
@@ -425,7 +456,7 @@ server <- function(input, output, session) {
   })
   
   output$houseage <- renderPlot({
-    housing %>% filter(Year == round(input$year7)) %>%
+    housing %>% filter(Year == round(input$year8)) %>%
       ggplot(aes(x= County, y = Year-Numerator_value, fill = County)) +
       geom_col(show.legend = F) +
       xlab('') + ylab('') +
@@ -434,7 +465,7 @@ server <- function(input, output, session) {
   })
   
   output$poverty <- renderPlot({
-    poverty %>% filter(Year == round(input$year8)) %>%
+    poverty %>% filter(Year == round(input$year9)) %>%
       ggplot(., aes(x = County, y = Numerator_value/Denominator_value, fill = County)) +
       geom_col(show.legend = F) +
       scale_y_continuous(labels = scales::percent) +
