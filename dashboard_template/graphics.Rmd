@@ -248,9 +248,6 @@ plot_ly(education %>% group_by(Year, Measure, County) %>%
 # Health
 ## Health Care Coverage
 ```{r, warning=FALSE}
-plot_ly(coverage %>% filter(Measure == "Health Insurance Total", Year == 2017),
-        y=~County, x=~Numerator_value, color=~County, colors=color_na, type='bar')
-
 plot_ly(coverage %>%
          group_by(Year, County, Measure) %>%
          summarise(added=sum(Numerator_value)) %>%
@@ -262,6 +259,7 @@ plot_ly(coverage %>%
          summarise(added=sum(Numerator_value)) %>%
          filter(Year==2016, Measure=='Children without Health Insurance'),
        y=~County, x=~added, type='bar', color=~County, colors=color_na)
+coverage %>% distinct(Measure)
 ```
 # Housing
 ## Housing Age
@@ -279,7 +277,8 @@ plot_ly(housing %>% filter(Year == 2014), y=~County, x=~diff,
 ```{r}
 plot_ly(poverty %>% filter(Year==2014),
         y=~County, x=~Numerator_value/Denominator_value,
-        color=~County, colors=color_na, type='bar')
+        color=~County, colors=color_na, type='bar') %>%
+      layout(xaxis=list(range=list(0,0.2)))
 ```
 # Transportation
 ##Commuting Modes

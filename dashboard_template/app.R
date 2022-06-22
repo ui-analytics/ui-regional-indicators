@@ -159,7 +159,8 @@ coverage <- read.csv('Values.csv') %>%
 # Make housing age data frame
 housing <- read.csv('Values.csv') %>%
   mutate(County = gsub(' County, North Carolina', '', County),
-         County = gsub(' County, South Carolina', '', County)) %>%
+         County = gsub(' County, South Carolina', '', County),
+         diff = Year-Numerator_value) %>%
   filter(Indicator == 'Housing Stock',
          County %in% counties)
 # Make poverty figures data frame
@@ -303,20 +304,39 @@ body <-
                            box(plotlyOutput('unemploychange',
                                           height = 600,
                                           width = 700)
-                               ))))),
+                               ))),
+                tabPanel('Income',
+                         fluidRow(
+                           box(width=3,
+                               height=100,
+                               sliderTextInput('year6',
+                                               'Select Year',
+                                               choices = unique(unemployment$Year),
+                                               grid=T)
+                               )),
+                         fluidRow(
+                           box(plotlyOutput('income',
+                                            height=600,
+                                            width=700))
+                         )))),
       tabItem(tabName = 'education',
               tabsetPanel(
                 tabPanel('Educational Attainment',
                          fluidRow(
                            box(width = 3,
                                height = 100,
-                               sliderTextInput('year6',
+                               sliderTextInput('year7',
                                                'Select Year',
                                                choices = unique(education$Year),
-                                               grid = T)
+                                               grid = T)),
+                           box(width=3,
+                               height=100,
+                               selectInput('attained',
+                                           'Select Educational Attainment Group',
+                                           choices = unique(education$Measure))
                                )),
                          fluidRow(
-                           box(plotOutput('attainment',
+                           box(plotlyOutput('attainment',
                                           height = 600,
                                           width = 700)
                                ))))),
@@ -326,16 +346,23 @@ body <-
                          fluidRow(
                            box(width = 3,
                                height = 100,
-                               sliderTextInput('year7',
+                               sliderTextInput('year8',
                                                'Select Year',
                                                choices = unique(coverage$Year),
-                                               grid = T)
-                               )),
+                                               grid = T)),
+                           box(width=3,
+                               height=100,
+                               selectInput('covclass',
+                                           'Select Coverage Class',
+                                           choices = c('People with Health Insurance',
+                                                       'People without Health Insurance',
+                                                       'Children without Health Insurance')
+                                           ))),
                          fluidRow(
-                           box(plotOutput('coverage',
+                           box(plotlyOutput('nocoverage',
                                           height = 600,
                                           width = 700)),
-                           box(plotOutput('nocoverage',
+                           box(plotlyOutput('coverage',
                                           height = 600,
                                           width = 700)
                                ))))),
@@ -345,13 +372,13 @@ body <-
                          fluidRow(
                            box(width = 3,
                                height = 100,
-                               sliderTextInput('year8',
+                               sliderTextInput('year9',
                                                'Select Year',
-                                               choices = unique(coverage$Year),
+                                               choices = unique(housing$Year),
                                                grid = T)
                                )),
                          fluidRow(
-                           box(plotOutput('houseage',
+                           box(plotlyOutput('houseage',
                                              height = 600,
                                              width = 700)
                                ))))),
@@ -361,13 +388,13 @@ body <-
                          fluidRow(
                            box(width = 3,
                                height = 100,
-                               sliderTextInput('year9',
+                               sliderTextInput('year10',
                                                'Select Year',
-                                               choices = unique(coverage$Year),
+                                               choices = unique(poverty$Year),
                                                grid = T)
                                )),
                          fluidRow(
-                           box(plotOutput('poverty',
+                           box(plotlyOutput('poverty',
                                             height = 600,
                                             width = 700)
                                )))))
@@ -424,54 +451,53 @@ server <- function(input, output, session) {
 
   })
   
-  output$attainment <- renderPlot({
-    ggplot(arrange(education, Order) %>% filter(Year == round(input$year6)), aes(x = County, y = (Numerator_value / Total), fill = Order), position = 'fill') +
-      geom_col() +
-      scale_y_continuous(labels = scales::percent) +
-      xlab('') + ylab('') +
-      ggtitle('Educational Attainment by County')+
-      coord_flip()+
-      scale_fill_discrete(labels = attainment_lvl, name = '')
+  output$income <- renderPlotly({
+    plot_ly(income %>% filter(Year == input$year6),
+            y=~County, x=~(Numerator_value/Total),
+            color=~Measure, type='bar') %>%
+      layout(barmode='stack')
+    
   })
   
-  output$coverage <- renderPlot({
-    coverage %>% filter(Measure == "Health Insurance Total", Year == round(input$year7)) %>%
-      ggplot(., aes(x = County, y = Numerator_value, fill = County))+
-      geom_col() +
-      xlab('') + ylab('') +
-      ggtitle('Population with Health Insurance Coverage by County')+
-      scale_y_continuous(labels = comma) +
-      coord_flip()
+  output$attainment <- renderPlotly({
+    plot_ly(education %>% group_by(Year, Measure, County) %>%
+              summarise(Numerator = sum(Numerator_value), Denominator = mean(Total)) %>%
+              filter(Year == input$year7, Measure == input$attained),
+            y=~County, color=~County, colors=color_na, x=~(Numerator/Denominator), type='bar')
+
   })
   
-  output$nocoverage <- renderPlot({
-    coverage %>% filter(Year == round(input$year7), !(Measure %in% c("Health Insurance Total", "People with Health Insurance"))) %>%
-      ggplot(aes(x = County, y = Numerator_value, fill = Measure, position = Measure)) +
-      geom_col(position = "dodge") +
-      xlab('') + ylab('') +
-      ggtitle('Population without Health Insurance Coverage by County')+
-      scale_y_continuous(labels = comma) +
-      theme(legend.title = element_blank()) +
-      coord_flip()
+  output$nocoverage <- renderPlotly({
+    plot_ly(coverage %>%
+              group_by(Year, County, Measure) %>%
+              summarise(added=sum(Numerator_value)) %>%
+              filter(Year==input$year8, !(Measure %in% c("Health Insurance Total"))),
+            y=~County, x=~added, type='bar', color=~Measure)
+
   })
   
-  output$houseage <- renderPlot({
-    housing %>% filter(Year == round(input$year8)) %>%
-      ggplot(aes(x= County, y = Year-Numerator_value, fill = County)) +
-      geom_col(show.legend = F) +
-      xlab('') + ylab('') +
-      ggtitle('Average House Age by County') +
-      coord_flip()
+  output$coverage <- renderPlotly({
+    plot_ly(coverage %>%
+              group_by(Year, County, Measure) %>%
+              summarise(added=sum(Numerator_value)) %>%
+              filter(Year==input$year8, Measure==input$covclass),
+            y=~County, x=~added, type='bar', color=~County, colors=color_na)
+    
   })
   
-  output$poverty <- renderPlot({
-    poverty %>% filter(Year == round(input$year9)) %>%
-      ggplot(., aes(x = County, y = Numerator_value/Denominator_value, fill = County)) +
-      geom_col(show.legend = F) +
-      scale_y_continuous(labels = scales::percent) +
-      xlab('') + ylab('') +
-      ggtitle('Poverty Rate by County') +
-      coord_flip()
+  output$houseage <- renderPlotly({
+    plot_ly(housing %>% filter(Year == input$year9), y=~County, x=~diff,
+            color=~County, colors=color_na, type='bar') %>%
+      layout(xaxis=list(showticklabels=FALSE))
+
+  })
+  
+  output$poverty <- renderPlotly({
+    plot_ly(poverty %>% filter(Year==input$year10),
+            y=~County, x=~Numerator_value/Denominator_value,
+            color=~County, colors=color_na, type='bar') %>%
+      layout(xaxis=list(range=list(0,0.2)))
+
   })
   
 }
