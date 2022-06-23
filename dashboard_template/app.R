@@ -406,33 +406,53 @@ server <- function(input, output, session) {
   output$population <- renderPlotly({
     # generate bins based on input$bins from ui.R
     plot_ly(countypop %>% filter(YEAR == input$year1),
-            x = ~POPESTIMATE, y = ~CTYNAME, type = 'bar',
-            color = ~CTYNAME, colors = color_a, orientation = 'h')
+            x = ~CTYNAME, y = ~POPESTIMATE, type = 'bar',
+            color =~CTYNAME, colors = color_a) %>%
+      layout(title= '<b> Estimated County Population by Year </b>',
+             xaxis= list(title='Population', tickformat=','),
+             yaxis= list(title=''),
+             legend= list(title=list(text='<b> Counties </b>')))
     
   })
   output$popchange <- renderPlotly({
-    plot_ly(countypop, x=~YEAR, y=~CHANGE, type='scatter', mode='lines',
-            color=~CTYNAME, colors=color_a)
+    plot_ly(countypop, x=~YEAR, y=~CHANGE*100, type='scatter', mode='lines',
+            color=~CTYNAME, colors=color_a) %>%
+      layout(title= '<b> Change in County Population from Previous Year </b>',
+             xaxis= list(title= 'Year'),
+             yaxis= list(title= '% Change', ticksuffix='%', range=c(-2,4.5)),
+             legend= list(title=list(text='<b> Counties </b>')))
   })
   
   output$ethnicity <- renderPlotly({
     plot_ly(ethpop %>% filter(YEAR == input$year2),
-            y=~CTYNAME, x=~POP/TOT_POP, color=~ETHNICITY,
+            y=~CTYNAME, x=~(POP/TOT_POP)*100, color=~ETHNICITY,
             type='bar') %>%
-      layout(barmode = 'stack')
+      layout(barmode = 'stack',
+             title='<b> County Population Percentage by Race </b>',
+             legend=list(title=list(text='<b> Race </b>')),
+             yaxis= list(title='County'),
+             xaxis= list(title='Population %', ticksuffix='%', range=c(0,100)))
       
   })
   output$age <- renderPlotly({
     plot_ly(pop_age_gender %>% filter(YEAR == input$year3, CTYNAME == input$county1),
-            y=~DEMO, x=~PERCENTAGE,
-            type='bar', color=~GENDER)
+            y=~DEMO, x=~PERCENTAGE*100,
+            type='bar', color=~GENDER) %>%
+      layout(title='<b> County Population Percentage by Age and Gender </b>',
+             yaxis= list(title=''),
+             xaxis= list(title='Population %', ticksuffix='%', range=c(0,5)),
+             legend= list(title=list(text='<b> Gender </b>')))
 
   })
   output$pob <- renderPlotly({
     plot_ly(birthplace %>% filter(Year == input$year4),
-            y=~County, x=~Numerator_value/Total, color=~Measure,
+            y=~County, x=~(Numerator_value/Total)*100, color=~Measure,
             type='bar') %>%
-      layout(barmode = 'stack')
+      layout(barmode = 'stack',
+             title='<b> County Population Percentage by Place of Birth </b>',
+             legend=list(title=list(text='<b> Place of Birth </b>')),
+             yaxis= list(title='County'),
+             xaxis= list(title='Population %', ticksuffix='%', range=c(0,100)))
     
   })
   

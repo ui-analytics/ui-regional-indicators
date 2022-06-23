@@ -44,7 +44,7 @@ for(i in 4:length(colnames(countypop))) {
 pop_age_gender <- rbind(countypop, cr)
 countypop <- cr %>% transmute(YEAR = YEAR, CHARLOTTEPOP = POPESTIMATE) %>% right_join(countypop, by = 'YEAR') %>% mutate(PROPORTION = POPESTIMATE / CHARLOTTEPOP) %>%
   group_by(CTYNAME) %>%
-  mutate(CHANGE = ifelse(YEAR == 2010, 0, POPESTIMATE/lag(POPESTIMATE, default = first(YEAR)) - 1)) %>%
+  mutate(CHANGE = round(ifelse(YEAR == 2010, 0, POPESTIMATE/lag(POPESTIMATE, default = first(YEAR)) - 1),4♦)) %>%
   ungroup()
 
 pop_age_gender <- pop_age_gender %>%
@@ -189,32 +189,52 @@ transportation <- read.csv('Values.csv') %>%
 # Demographics
 ## Population
 ```{r}
-plot_ly(countypop %>% filter(YEAR == 2019), x = ~POPESTIMATE, y = ~CTYNAME, type = 'bar', color = ~CTYNAME, colors = color_a, orientation = 'h')
+plot_ly(countypop %>% filter(YEAR == 2019), x = ~POPESTIMATE, y = ~CTYNAME, type = 'bar', color = ~CTYNAME, colors = color_a, orientation = 'h') %>%
+  layout(title= '<b> Estimated County Population by Year </b>',
+         xaxis= list(title='Population', tickformat=','),
+         yaxis= list(title=''),
+         legend= list(title=list(text='<b> Counties </b>')))
 
-plot_ly(countypop, x=~YEAR, y=~CHANGE, color=~CTYNAME, type='scatter', mode='lines', colors=color_a)
+plot_ly(countypop, x=~YEAR, y=~CHANGE*100, color=~CTYNAME, type='scatter', mode='lines', colors=color_a) %>%
+  layout(title= '<b> Change in County Population from Previous Year </b>',
+         xaxis= list(title= 'Year'),
+         yaxis= list(title= '% Change', ticksuffix='%', range=c(-2,4.5)),
+         legend= list(title=list(text='<b> Counties </b>')))
 ```
 
 ## Age & Gender
 ```{r, fig.height = 6, fig.width= 10, warning=FALSE}
 plot_ly(pop_age_gender %>% filter(YEAR == 2017, CTYNAME == 'Charlotte Region'),
-        y=~DEMO, x=~PERCENTAGE,
-        type='bar', color=~GENDER)
+        y=~DEMO, x=~PERCENTAGE*100,
+        type='bar', color=~GENDER) %>%
+  layout(title='<b> County Population Percentage by Age and Gender </b>',
+         yaxis= list(title=''),
+         xaxis= list(title='Population %', ticksuffix='%', range=c(0,5)),
+         legend= list(title=list(text='<b> Gender </b>')))
 ```
 
 ## Race & Ethnicity
 ```{r}
 plot_ly(ethpop %>% filter(YEAR == 2019),
-        y=~CTYNAME, x=~POP/TOT_POP, color=~ETHNICITY,
+        y=~CTYNAME, x=~(POP/TOT_POP)*100, color=~ETHNICITY,
         type='bar') %>%
-  layout(barmode = 'stack')
+  layout(barmode = 'stack',
+         title='<b> County Population Percentage by Race </b>',
+         legend=list(title=list(text='<b> Race </b>')),
+         yaxis= list(title='County'),
+         xaxis= list(title='Population %', ticksuffix='%', range=c(0,100)))
 ```
 
 ## Place of Birth
 ```{r}
 plot_ly(birthplace %>% filter(Year == 2019),
-        y=~County, x=~Numerator_value/Total, color=~Measure,
+        y=~County, x=~(Numerator_value/Total)*100, color=~Measure,
         type='bar') %>%
-  layout(barmode = 'stack')
+  layout(barmode = 'stack',
+         title='<b> County Population Percentage by Place of Birth </b>',
+         legend=list(title=list(text='<b> Place of Birth </b>')),
+         yaxis= list(title='County'),
+         xaxis= list(title='Population %', ticksuffix='%', range=c(0,100)))
 ```
 
 
