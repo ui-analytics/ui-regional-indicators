@@ -9,10 +9,10 @@ library(shinydashboard)
 library(plotly)
 
 ################################ LOAD DATA ####################################
-color_a <- c("#58b5e1","#1c5b5a","#46ebdc","#1f4196","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#b7d165","#30d52e","#ff5357")
-color_na <- c("#1c5b5a","#46ebdc","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#30d52e","#ff5357")
-x_label <- c('Under 5 Female', 'Under 5 Male', '05-09 Female', '05-09 Male', '10-14 Female', '10-14 Male', '15-19 Female', '15-19 Male', '20-24 Female', '20-24 Male', '25-29 Female', '25-29 Male', '30-34 Female', '30-34 Male', '35-39 Female', '35-39 Male', '40-44 Female', '40-44 Male', '45-49 Female', '45-49 Male', '50-54 Female', '50-54 Male', '55-59 Female', '55-59 Male', '60-64 Female', '60-64 Male', '65-69 Female', '65-69 Male', '70-74 Female', '70-74 Male', '75-79 Female', '75-79 Male', '80-84 Female', '80-84 Male', '85 and over Female', '85 and over Male')
+county_color <- c("#58b5e1","#1c5b5a","#46ebdc","#1f4196","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#b7d165","#30d52e","#ff5357")
 counties <- c('Anson', 'Cabarrus', 'Catawba', 'Chester', 'Cleveland', 'Gaston', 'Iredell', 'Lancaster', 'Lincoln', 'Mecklenburg', 'Rowan', 'Stanly', 'Union', 'York')
+county_color <- set_names(county_color, counties)
+x_label <- c('Under 5 Female', 'Under 5 Male', '05-09 Female', '05-09 Male', '10-14 Female', '10-14 Male', '15-19 Female', '15-19 Male', '20-24 Female', '20-24 Male', '25-29 Female', '25-29 Male', '30-34 Female', '30-34 Male', '35-39 Female', '35-39 Male', '40-44 Female', '40-44 Male', '45-49 Female', '45-49 Male', '50-54 Female', '50-54 Male', '55-59 Female', '55-59 Male', '60-64 Female', '60-64 Male', '65-69 Female', '65-69 Male', '70-74 Female', '70-74 Male', '75-79 Female', '75-79 Male', '80-84 Female', '80-84 Male', '85 and over Female', '85 and over Male')
 attainment_lvl <- c('Highest Degree: Less than a High School Diploma', 'Highest Degree: High School Diploma', 'Highest Degree: Some College, No Degree', "Highest Degree: Associate's Degree", "Highest Degree: Bachelor's Degree", "Highest Degree: Graduate or Professional Degree")
 foreign_detail <- c('Foreign-Born: Africa', 'Foreign-Born: Asia', 'Foreign-Born: Europe', 'Foreign-Born: Latin America', 'Place of Birth Total')
 
@@ -156,6 +156,14 @@ coverage <- read.csv('Values.csv') %>%
          County = gsub(' County, South Carolina', '', County)) %>%
   filter(Indicator == 'Health Care Coverage',
          County %in% counties)
+# Make Drug related deaths data frame
+drug <-read_excel('drug_mortality.xlsx') %>%
+  separate(County, into=c("County",'State'), sep=', ', remove=FALSE) %>%
+  mutate(County = gsub(' County', '', County)) %>%
+  filter(County %in% counties, Year >= 2010,
+         State=='NC' | State=='SC',
+         !(State == 'SC' & County == 'Union')) %>%
+  distinct()
 # Make housing age data frame
 housing <- read.csv('Values.csv') %>%
   mutate(County = gsub(' County, North Carolina', '', County),
@@ -407,7 +415,7 @@ server <- function(input, output, session) {
     # generate bins based on input$bins from ui.R
     plot_ly(countypop %>% filter(YEAR == input$year1),
             x = ~CTYNAME, y = ~POPESTIMATE, type = 'bar',
-            color =~CTYNAME, colors = color_a) %>%
+            color =~CTYNAME, colors = county_color) %>%
       layout(title= '<b> Estimated County Population by Year </b>',
              xaxis= list(title='Population', tickformat=','),
              yaxis= list(title=''),
@@ -416,7 +424,7 @@ server <- function(input, output, session) {
   })
   output$popchange <- renderPlotly({
     plot_ly(countypop, x=~YEAR, y=~CHANGE*100, type='scatter', mode='lines',
-            color=~CTYNAME, colors=color_a) %>%
+            color=~CTYNAME, colors=county_color) %>%
       layout(title= '<b> Change in County Population from Previous Year </b>',
              xaxis= list(title= 'Year'),
              yaxis= list(title= '% Change', ticksuffix='%', range=c(-2,4.5)),
@@ -460,14 +468,14 @@ server <- function(input, output, session) {
     # generate bins based on input$bins from ui.R
     plot_ly(unemployment %>% filter(Year==input$year5, Month==input$month),
             x=~Unemployment, y=~County, type='bar',
-            color=~County, colors=color_a)
+            color=~County, colors=county_color)
 
   })
 
   output$unemploychange <- renderPlotly({
     plot_ly(unemployment %>% filter(County == input$county2),
             x=~Date, y=~Unemployment, type='scatter', mode='lines',
-            color=~County, colors=color_a)
+            color=~County, colors=county_color)
 
   })
   
@@ -483,7 +491,7 @@ server <- function(input, output, session) {
     plot_ly(education %>% group_by(Year, Measure, County) %>%
               summarise(Numerator = sum(Numerator_value), Denominator = mean(Total)) %>%
               filter(Year == input$year7, Measure == input$attained),
-            y=~County, color=~County, colors=color_na, x=~(Numerator/Denominator), type='bar')
+            y=~County, color=~County, colors=county_color, x=~(Numerator/Denominator), type='bar')
 
   })
   
@@ -501,13 +509,13 @@ server <- function(input, output, session) {
               group_by(Year, County, Measure) %>%
               summarise(added=sum(Numerator_value)) %>%
               filter(Year==input$year8, Measure==input$covclass),
-            y=~County, x=~added, type='bar', color=~County, colors=color_na)
+            y=~County, x=~added, type='bar', color=~County, colors=county_color)
     
   })
   
   output$houseage <- renderPlotly({
     plot_ly(housing %>% filter(Year == input$year9), y=~County, x=~diff,
-            color=~County, colors=color_na, type='bar') %>%
+            color=~County, colors=county_color, type='bar') %>%
       layout(xaxis=list(showticklabels=FALSE))
 
   })
@@ -515,7 +523,7 @@ server <- function(input, output, session) {
   output$poverty <- renderPlotly({
     plot_ly(poverty %>% filter(Year==input$year10),
             y=~County, x=~Numerator_value/Denominator_value,
-            color=~County, colors=color_na, type='bar') %>%
+            color=~County, colors=county_color, type='bar') %>%
       layout(xaxis=list(range=list(0,0.2)))
 
   })

@@ -15,9 +15,9 @@ library(plotly)
 
 # Making Dataframes
 ```{r}
-color_a <- c("#58b5e1","#1c5b5a","#46ebdc","#1f4196","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#b7d165","#30d52e","#ff5357")
-color_na <- c("#1c5b5a","#46ebdc","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#30d52e","#ff5357")
+county_color <- c("#58b5e1","#1c5b5a","#46ebdc","#1f4196","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#b7d165","#30d52e","#ff5357")
 counties <- c('Anson', 'Cabarrus', 'Catawba', 'Chester', 'Cleveland', 'Gaston', 'Iredell', 'Lancaster', 'Lincoln', 'Mecklenburg', 'Rowan', 'Stanly', 'Union', 'York')
+county_color <- set_names(county_color, counties)
 attainment_lvl <- c('Highest Degree: Less than a High School Diploma', 'Highest Degree: High School Diploma', 'Highest Degree: Some College, No Degree', "Highest Degree: Associate's Degree", "Highest Degree: Bachelor's Degree", "Highest Degree: Graduate or Professional Degree")
 foreign_detail <- c('Foreign-Born: Africa', 'Foreign-Born: Asia', 'Foreign-Born: Europe', 'Foreign-Born: Latin America', 'Place of Birth Total')
 
@@ -44,7 +44,7 @@ for(i in 4:length(colnames(countypop))) {
 pop_age_gender <- rbind(countypop, cr)
 countypop <- cr %>% transmute(YEAR = YEAR, CHARLOTTEPOP = POPESTIMATE) %>% right_join(countypop, by = 'YEAR') %>% mutate(PROPORTION = POPESTIMATE / CHARLOTTEPOP) %>%
   group_by(CTYNAME) %>%
-  mutate(CHANGE = round(ifelse(YEAR == 2010, 0, POPESTIMATE/lag(POPESTIMATE, default = first(YEAR)) - 1),4♦)) %>%
+  mutate(CHANGE = round(ifelse(YEAR == 2010, 0, POPESTIMATE/lag(POPESTIMATE, default = first(YEAR)) - 1),4)) %>%
   ungroup()
 
 pop_age_gender <- pop_age_gender %>%
@@ -162,6 +162,14 @@ coverage <- read.csv('Values.csv') %>%
          County = gsub(' County, South Carolina', '', County)) %>%
   filter(Indicator == 'Health Care Coverage',
          County %in% counties)
+# Make drug related deaths data frame
+drug <-read_excel('drug_mortality.xlsx') %>%
+  separate(County, into=c("County",'State'), sep=', ', remove=FALSE) %>%
+  mutate(County = gsub(' County', '', County)) %>%
+  filter(County %in% counties, Year >= 2010,
+         State=='NC' | State=='SC',
+         !(State == 'SC' & County == 'Union')) %>%
+  distinct()
 # Make housing age data frame
 housing <- read.csv('Values.csv') %>%
   mutate(County = gsub(' County, North Carolina', '', County),
@@ -189,13 +197,13 @@ transportation <- read.csv('Values.csv') %>%
 # Demographics
 ## Population
 ```{r}
-plot_ly(countypop %>% filter(YEAR == 2019), x = ~POPESTIMATE, y = ~CTYNAME, type = 'bar', color = ~CTYNAME, colors = color_a, orientation = 'h') %>%
+plot_ly(countypop %>% filter(YEAR == 2019), x = ~POPESTIMATE, y = ~CTYNAME, type = 'bar', color = ~CTYNAME, colors = county_color, orientation = 'h') %>%
   layout(title= '<b> Estimated County Population by Year </b>',
          xaxis= list(title='Population', tickformat=','),
          yaxis= list(title=''),
          legend= list(title=list(text='<b> Counties </b>')))
 
-plot_ly(countypop, x=~YEAR, y=~CHANGE*100, color=~CTYNAME, type='scatter', mode='lines', colors=color_a) %>%
+plot_ly(countypop, x=~YEAR, y=~CHANGE*100, color=~CTYNAME, type='scatter', mode='lines', colors=county_color) %>%
   layout(title= '<b> Change in County Population from Previous Year </b>',
          xaxis= list(title= 'Year'),
          yaxis= list(title= '% Change', ticksuffix='%', range=c(-2,4.5)),
@@ -242,9 +250,9 @@ plot_ly(birthplace %>% filter(Year == 2019),
 # Economy
 ## Unemployment
 ```{r}
-plot_ly(unemployment, x=~Date, y=~Unemployment, color=~County, colors=color_a, type='scatter', mode='lines')
+plot_ly(unemployment, x=~Date, y=~Unemployment, color=~County, colors=county_color, type='scatter', mode='lines')
 
-plot_ly(unemployment %>% filter(Year==2015, Month==6), x=~Unemployment, y=~County, color=~County, colors=color_a, type='bar')
+plot_ly(unemployment %>% filter(Year==2015, Month==6), x=~Unemployment, y=~County, color=~County, colors=county_color, type='bar')
 ```
 
 ################   6/21 Up to this point has been done in the shiny app  ######################
@@ -262,7 +270,7 @@ plot_ly(income %>% filter(Year == 2014), y=~County, x=~(Numerator_value/Total), 
 ```{r}
 plot_ly(education %>% group_by(Year, Measure, County) %>%
   summarise(Numerator = sum(Numerator_value),
-            Denominator = mean(Total)) %>% filter(Year == 2018, Measure == 'High School Diploma'), y=~County, color=~County, colors=color_na, x=~(Numerator/Denominator), type='bar')
+            Denominator = mean(Total)) %>% filter(Year == 2018, Measure == 'High School Diploma'), y=~County, color=~County, colors=county_color, x=~(Numerator/Denominator), type='bar')
 ```
 
 # Health
@@ -272,32 +280,34 @@ plot_ly(coverage %>%
          group_by(Year, County, Measure) %>%
          summarise(added=sum(Numerator_value)) %>%
          filter(Year==2016, !(Measure %in% c("Health Insurance Total"))),
-       y=~County, x=~added, type='bar', color=~Measure)
+        y=~County, x=~added, type='bar',
+        color=~Measure)
 
 plot_ly(coverage %>%
          group_by(Year, County, Measure) %>%
          summarise(added=sum(Numerator_value)) %>%
          filter(Year==2016, Measure=='Children without Health Insurance'),
-       y=~County, x=~added, type='bar', color=~County, colors=color_na)
-coverage %>% distinct(Measure)
+       y=~County, x=~added, type='bar', color=~County, colors=county_color)
 ```
+## Drug-Related Deaths
+```{r}
+plot_ly(drug %>% filter(Year==2017), x=~Deaths, y=~County, type='bar', colors=~county_color, color=~County)
+```
+
 # Housing
 ## Housing Age
 ```{r}
-housing %>% filter(Year == 2017) %>%
-  ggplot(aes(x= County, y = Year-Numerator_value, fill = County)) +
-  geom_col() +
-  coord_flip()
-# axis is giving double the true value
-plot_ly(housing %>% filter(Year == 2014), y=~County, x=~diff,
-        color=~County, colors=color_na, type='bar')
+# axis is giving double the true value AND lines are thin
+plot_ly(housing %>% filter(Year == 2014),
+        y=~County, x=~diff, color=~County,
+        colors=county_color, type='bar')
 ```
 # Social Well-Being
 ## Poverty
 ```{r}
 plot_ly(poverty %>% filter(Year==2014),
         y=~County, x=~Numerator_value/Denominator_value,
-        color=~County, colors=color_na, type='bar') %>%
+        color=~County, colors=county_color, type='bar') %>%
       layout(xaxis=list(range=list(0,0.2)))
 ```
 # Transportation
@@ -309,6 +319,9 @@ transportation %>% filter(Year == 2014) %>%
   geom_col(position = 'dodge') +
   scale_y_continuous(labels = comma) +
   coord_flip()
+plot_ly(transportation %>% filter(Year==2018),
+        x=~Numerator_value, y=~County, color=~Measure,
+        type='bar')
 ```
 
 
