@@ -1,10 +1,10 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output:
 ---
 
 # Load Packages
-```{r}
+```{r, warning=FALSE}
 library(tidyverse)
 library(ggthemes)
 library(scales)
@@ -156,6 +156,22 @@ education <- education %>% inner_join((education %>% group_by(County, Year) %>% 
       Measure == "Highest Degree: Bachelor's Degree" ~ 5,
       Measure == "Highest Degree: Graduate or Professional Degree" ~ 6)),
     Measure = gsub("Highest Degree: ","",Measure))
+# Make births data frame
+births <- read_excel('births.xlsx') %>%
+  separate(County, into=c("County",'State'), sep=', ', remove=FALSE) %>%
+  mutate(County = gsub(' County', '', County)) %>%
+  filter(County %in% counties,
+         State=='NC' | State=='SC',
+         !(State == 'SC' & County == 'Union')) %>%
+  select(-'County Code', -'Year Code') %>%
+  rename(Total_Population = 'Total Population',
+         Birth_Rate = 'Birth Rate',
+         Female_Population = 'Female Population',
+         Fertility_Rate = 'Fertility Rate',
+         Average_Age = 'Average Age of Mother') %>%
+  pivot_longer(cols=Total_Population:Average_Age,
+               names_to='Measure', values_to='Value') %>%
+  distinct()
 # Make health care coverage data frame
 coverage <- read.csv('Values.csv') %>%
   mutate(County = gsub(' County, North Carolina', '', County),
@@ -165,11 +181,29 @@ coverage <- read.csv('Values.csv') %>%
 # Make drug related deaths data frame
 drug <-read_excel('drug_mortality.xlsx') %>%
   separate(County, into=c("County",'State'), sep=', ', remove=FALSE) %>%
-  mutate(County = gsub(' County', '', County)) %>%
+  rename(Crude_Rate = 'Crude Rate') %>%
+  mutate(County = gsub(' County', '', County),
+         Crude_Rate= as.numeric(Crude_Rate)) %>%
   filter(County %in% counties, Year >= 2010,
          State=='NC' | State=='SC',
          !(State == 'SC' & County == 'Union')) %>%
   distinct()
+# Make STD data frame
+std <- read_excel('STDs.xlsx', sheet=1) %>%
+  pivot_longer(cols = starts_with('20'),
+               names_to='Year',
+               values_to='HIV Cases') %>%
+  mutate(Year= as.integer(gsub(' cases', '', tolower(Year)))) %>%
+  left_join(read_excel('STDs.xlsx', sheet=2) %>%
+  pivot_longer(cols = starts_with('20'),
+               names_to='Year',
+               values_to='Chlamydia Cases') %>%
+  mutate(Year= as.integer(gsub(' cases', '', tolower(Year)))), by=c('County','Year')) %>%
+  pivot_longer(cols=ends_with(' Cases'),
+               names_to='STD',
+               values_to='Cases') %>%
+  mutate(STD= gsub(' Cases','', STD)) %>%
+  filter(County %in% counties) %>% distinct()
 # Make housing age data frame
 housing <- read.csv('Values.csv') %>%
   mutate(County = gsub(' County, North Carolina', '', County),
@@ -192,7 +226,6 @@ transportation <- read.csv('Values.csv') %>%
          Measure != 'Commuting Means Total',
          County %in% counties)
 ```
-
 
 # Demographics
 ## Population
@@ -289,9 +322,31 @@ plot_ly(coverage %>%
          filter(Year==2016, Measure=='Children without Health Insurance'),
        y=~County, x=~added, type='bar', color=~County, colors=county_color)
 ```
+
 ## Drug-Related Deaths
 ```{r}
-plot_ly(drug %>% filter(Year==2017), x=~Deaths, y=~County, type='bar', colors=~county_color, color=~County)
+plot_ly(drug %>% filter(Year==2017), x=~Crude_Rate, y=~County, type='bar', colors=~county_color, color=~County)
+```
+
+## STD Cases
+```{r, warning=FALSE}
+plot_ly(std %>% filter(Year==2019),
+        x=~Cases, y=~County, color=~STD,
+        type='bar')
+plot_ly(std,
+        x=~Year, y=~Cases, color=~County, colors=~county_color, symbol=~STD,
+        type='scatter', mode='lines+markers')
+```
+
+## Births
+```{r}
+# https://wonder.cdc.gov/
+# Rate per 100,000
+plot_ly(births %>% filter(Year==2019, Measure=='Birth_Rate'),
+        y=~County, x=~Value, color=~County, colors=county_color, type='bar')
+
+plot_ly(births %>% filter(Measure=='Birth_Rate'),
+        y=~Value, x=~Year, color=~County, colors=county_color, type='scatter', mode='lines')
 ```
 
 # Housing
@@ -302,6 +357,7 @@ plot_ly(housing %>% filter(Year == 2014),
         y=~County, x=~diff, color=~County,
         colors=county_color, type='bar')
 ```
+
 # Social Well-Being
 ## Poverty
 ```{r}
@@ -310,6 +366,7 @@ plot_ly(poverty %>% filter(Year==2014),
         color=~County, colors=county_color, type='bar') %>%
       layout(xaxis=list(range=list(0,0.2)))
 ```
+
 # Transportation
 ##Commuting Modes
 ```{r, eval=FALSE}
@@ -323,6 +380,13 @@ plot_ly(transportation %>% filter(Year==2018),
         x=~Numerator_value, y=~County, color=~Measure,
         type='bar')
 ```
+
+
+
+
+
+
+
 
 
 

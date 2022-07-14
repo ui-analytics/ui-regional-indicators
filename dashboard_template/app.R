@@ -150,6 +150,20 @@ education <- education %>% inner_join((education %>% group_by(County, Year) %>% 
     Measure == "Highest Degree: Bachelor's Degree" ~ 5,
     Measure == "Highest Degree: Graduate or Professional Degree" ~ 6)),
     Measure = gsub("Highest Degree: ","",Measure))
+# Make births data frame
+births <- read_excel('births.xlsx') %>%
+  separate(County, into=c("County",'State'), sep=', ', remove=FALSE) %>%
+  mutate(County = gsub(' County', '', County)) %>%
+  filter(County %in% counties,
+         State=='NC' | State=='SC',
+         !(State == 'SC' & County == 'Union')) %>%
+  select(-'County Code', -'Year Code') %>%
+  rename(Total_Population = 'Total Population',
+         Birth_Rate = 'Birth Rate',
+         Female_Population = 'Female Population',
+         Fertility_Rate = 'Fertility Rate',
+         Average_Age = 'Average Age of Mother') %>%
+  distinct()
 # Make health care coverage data frame
 coverage <- read.csv('Values.csv') %>%
   mutate(County = gsub(' County, North Carolina', '', County),
@@ -164,6 +178,22 @@ drug <-read_excel('drug_mortality.xlsx') %>%
          State=='NC' | State=='SC',
          !(State == 'SC' & County == 'Union')) %>%
   distinct()
+# Make STD data frame
+std <- read_excel('STDs.xlsx', sheet=1) %>%
+  pivot_longer(cols = starts_with('20'),
+               names_to='Year',
+               values_to='HIV Cases') %>%
+  mutate(Year= as.integer(gsub(' cases', '', tolower(Year)))) %>%
+  left_join(read_excel('STDs.xlsx', sheet=2) %>%
+              pivot_longer(cols = starts_with('20'),
+                           names_to='Year',
+                           values_to='Chlamydia Cases') %>%
+              mutate(Year= as.integer(gsub(' cases', '', tolower(Year)))), by=c('County','Year')) %>%
+  pivot_longer(cols=ends_with(' Cases'),
+               names_to='STD',
+               values_to='Cases') %>%
+  mutate(STD= gsub(' Cases','', STD)) %>%
+  filter(County %in% counties) %>% distinct()
 # Make housing age data frame
 housing <- read.csv('Values.csv') %>%
   mutate(County = gsub(' County, North Carolina', '', County),
@@ -373,6 +403,46 @@ body <-
                            box(plotlyOutput('coverage',
                                           height = 600,
                                           width = 700)
+                               ))),
+                tabPanel('Births',
+                         fluidRow(
+                           box(width=3,
+                               height=100,
+                               sliderTextInput('year9',
+                                               'Select Year',
+                                               choices= unique(births$Year),
+                                               grid=T)),
+                           box(width=3,
+                               height=100,
+                               selectInput('birth_measure',
+                                           'Select Birth-Related Measure',
+                                           choices=c('Birth_Rate',
+                                                     'Fertility_Rate',
+                                                     'Average_Age')
+                                           ))),
+                         fluidRow(
+                           box(plotlyOutput('birthplot1',
+                                            height=600,
+                                            width=700)),
+                           box(plotlyOutput('birthplot2',
+                                            height=600,
+                                            width=700)
+                               ))),
+                tabPanel('STD Cases',
+                         fluidRow(
+                           box(width=3,
+                               height=100,
+                               sliderTextInput('year9',
+                                               'Select Year',
+                                               choices= unique(std$Year),
+                                               grid=T))),
+                         fluidRow(
+                           box(plotlyOutput('std1',
+                                            height=600,
+                                            width=700)),
+                           box(plotlyOutput('std2',
+                                            height=600,
+                                            width=700)
                                ))))),
       tabItem(tabName = 'housing',
               tabsetPanel(
