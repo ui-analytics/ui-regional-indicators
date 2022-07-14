@@ -157,12 +157,12 @@ births <- read_excel('births.xlsx') %>%
   filter(County %in% counties,
          State=='NC' | State=='SC',
          !(State == 'SC' & County == 'Union')) %>%
-  select(-'County Code', -'Year Code') %>%
-  rename(Total_Population = 'Total Population',
-         Birth_Rate = 'Birth Rate',
-         Female_Population = 'Female Population',
+  select(-'County Code', -'Year Code',-'Total Population', -'Female Population') %>%
+  rename(Birth_Rate = 'Birth Rate',
          Fertility_Rate = 'Fertility Rate',
          Average_Age = 'Average Age of Mother') %>%
+  pivot_longer(cols=Birth_Rate:Average_Age,
+               names_to='Measure', values_to='Value') %>%
   distinct()
 # Make health care coverage data frame
 coverage <- read.csv('Values.csv') %>%
@@ -173,7 +173,9 @@ coverage <- read.csv('Values.csv') %>%
 # Make Drug related deaths data frame
 drug <-read_excel('drug_mortality.xlsx') %>%
   separate(County, into=c("County",'State'), sep=', ', remove=FALSE) %>%
-  mutate(County = gsub(' County', '', County)) %>%
+  rename(Crude_Rate = 'Crude Rate') %>%
+  mutate(County = gsub(' County', '', County),
+         Crude_Rate= as.numeric(Crude_Rate)) %>%
   filter(County %in% counties, Year >= 2010,
          State=='NC' | State=='SC',
          !(State == 'SC' & County == 'Union')) %>%
@@ -208,13 +210,7 @@ poverty <- read.csv('Values.csv') %>%
   filter(Measure == 'Individuals in Poverty',
          Theme == 'Social Well-Being',
          County %in% counties)
-# Make transportation means data frame
-transportation <- read.csv('Values.csv') %>%
-  mutate(County = gsub(' County, North Carolina', '', County),
-         County = gsub(' County, South Carolina', '', County)) %>%
-  filter(Theme == 'Transportation',
-         Measure != 'Commuting Means Total',
-         County %in% counties)
+
 ################################ DATA LOADED ###################################
 
 header <- 
@@ -231,8 +227,7 @@ sidebar <-
       menuItem('Education', tabName = 'education'),
       menuItem('Health', tabName = 'health'),
       menuItem('Housing', tabName = 'housing'),
-      menuItem('Social Well-Being', tabName = 'wellbeing'),
-      menuItem('Transportation', tabName = 'transportation')
+      menuItem('Social Well-Being', tabName = 'wellbeing')
     )
   )
 
@@ -349,7 +344,7 @@ body <-
                                height=100,
                                sliderTextInput('year6',
                                                'Select Year',
-                                               choices = unique(unemployment$Year),
+                                               choices = unique(income$Year),
                                                grid=T)
                                )),
                          fluidRow(
@@ -414,11 +409,9 @@ body <-
                                                grid=T)),
                            box(width=3,
                                height=100,
-                               selectInput('birth_measure',
+                               selectInput('birthmeasure',
                                            'Select Birth-Related Measure',
-                                           choices=c('Birth_Rate',
-                                                     'Fertility_Rate',
-                                                     'Average_Age')
+                                           choices= unique(births$Measure)
                                            ))),
                          fluidRow(
                            box(plotlyOutput('birthplot1',
@@ -432,7 +425,7 @@ body <-
                          fluidRow(
                            box(width=3,
                                height=100,
-                               sliderTextInput('year9',
+                               sliderTextInput('year10',
                                                'Select Year',
                                                choices= unique(std$Year),
                                                grid=T))),
@@ -443,6 +436,19 @@ body <-
                            box(plotlyOutput('std2',
                                             height=600,
                                             width=700)
+                               ))),
+                tabPanel('Drug-Related Deaths',
+                         fluidRow(
+                           box(width=3,
+                               height=100,
+                               sliderTextInput('year11',
+                                               'Select Year',
+                                               choices= unique(drug$Year),
+                                               grid=T))),
+                         fluidRow(
+                           box(plotlyOutput('drug1',
+                                            height=600,
+                                            width=700)
                                ))))),
       tabItem(tabName = 'housing',
               tabsetPanel(
@@ -450,7 +456,7 @@ body <-
                          fluidRow(
                            box(width = 3,
                                height = 100,
-                               sliderTextInput('year9',
+                               sliderTextInput('year12',
                                                'Select Year',
                                                choices = unique(housing$Year),
                                                grid = T)
@@ -466,7 +472,7 @@ body <-
                          fluidRow(
                            box(width = 3,
                                height = 100,
-                               sliderTextInput('year10',
+                               sliderTextInput('year13',
                                                'Select Year',
                                                choices = unique(poverty$Year),
                                                grid = T)
@@ -582,16 +588,45 @@ server <- function(input, output, session) {
             y=~County, x=~added, type='bar', color=~County, colors=county_color)
     
   })
+  output$birthplot1 <- renderPlotly({
+    plot_ly(births %>% filter(Year==input$year9, Measure==input$birthmeasure),
+            y=~County, x=~Value, color=~County,
+            colors=county_color, type='bar')
+  })
+  
+  output$birthplot2 <- renderPlotly({
+    plot_ly(births %>% filter(Measure==input$birthmeasure),
+            y=~Value, x=~Year, color=~County, colors=county_color,
+            type='scatter', mode='lines')
+  })
+  
+  output$std1 <- renderPlotly({
+    plot_ly(std %>% filter(Year==input$year10),
+            x=~Cases, y=~County, color=~STD,
+            type='bar')
+  })
+  
+  output$std2 <- renderPlotly({
+    plot_ly(std, x=~Year, y=~Cases,
+            color=~County, colors=~county_color, symbol=~STD,
+            type='scatter', mode='lines+markers')
+  })
+  
+  output$drug1 <- renderPlotly({
+    plot_ly(drug %>% filter(Year==input$year11),
+            x=~Crude_Rate, y=~County, type='bar',
+            colors=~county_color, color=~County)
+  })
   
   output$houseage <- renderPlotly({
-    plot_ly(housing %>% filter(Year == input$year9), y=~County, x=~diff,
+    plot_ly(housing %>% filter(Year == input$year12), y=~County, x=~diff,
             color=~County, colors=county_color, type='bar') %>%
       layout(xaxis=list(showticklabels=FALSE))
 
   })
   
   output$poverty <- renderPlotly({
-    plot_ly(poverty %>% filter(Year==input$year10),
+    plot_ly(poverty %>% filter(Year==input$year13),
             y=~County, x=~Numerator_value/Denominator_value,
             color=~County, colors=county_color, type='bar') %>%
       layout(xaxis=list(range=list(0,0.2)))

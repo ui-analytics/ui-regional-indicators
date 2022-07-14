@@ -163,13 +163,11 @@ births <- read_excel('births.xlsx') %>%
   filter(County %in% counties,
          State=='NC' | State=='SC',
          !(State == 'SC' & County == 'Union')) %>%
-  select(-'County Code', -'Year Code') %>%
-  rename(Total_Population = 'Total Population',
-         Birth_Rate = 'Birth Rate',
-         Female_Population = 'Female Population',
+  select(-'County Code', -'Year Code',-'Total Population', -'Female Population') %>%
+  rename(Birth_Rate = 'Birth Rate',
          Fertility_Rate = 'Fertility Rate',
          Average_Age = 'Average Age of Mother') %>%
-  pivot_longer(cols=Total_Population:Average_Age,
+  pivot_longer(cols=Birth_Rate:Average_Age,
                names_to='Measure', values_to='Value') %>%
   distinct()
 # Make health care coverage data frame
@@ -371,16 +369,26 @@ plot_ly(poverty %>% filter(Year==2014),
 ##Commuting Modes
 ```{r, eval=FALSE}
 # Way too many missing values to create a substantive visualization.
-transportation %>% filter(Year == 2014) %>%
-  ggplot(aes(x = County, y = Numerator_value, fill = Measure, position = Measure)) +
-  geom_col(position = 'dodge') +
-  scale_y_continuous(labels = comma) +
-  coord_flip()
 plot_ly(transportation %>% filter(Year==2018),
         x=~Numerator_value, y=~County, color=~Measure,
         type='bar')
 ```
 
+```{r}
+read_excel('births.xlsx') %>%
+  separate(County, into=c("County",'State'), sep=', ', remove=FALSE) %>%
+  mutate(County = gsub(' County', '', County)) %>%
+  filter(County %in% counties,
+         State=='NC' | State=='SC',
+         !(State == 'SC' & County == 'Union')) %>%
+  select(-'County Code', -'Year Code',-'Total Population', -'Female Population') %>%
+  rename(Birth_Rate = 'Birth Rate',
+         Fertility_Rate = 'Fertility Rate',
+         Average_Age = 'Average Age of Mother') %>%
+  pivot_longer(cols=Birth_Rate:Average_Age,
+               names_to='Measure', values_to='Value') %>%
+  distinct()
+```
 
 
 
