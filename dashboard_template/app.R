@@ -1,20 +1,20 @@
-library(shiny)
-library(shinyWidgets)
-library(tidyverse)
-library(shinyBS)
-library(ggthemes)
-library(scales)
-library(readxl)
-library(shinydashboard)
-library(plotly)
+packages <- c('dplyr', 'tidyr', 'stats', 'graphics', 'purrr', 'readxl', 'plotly', 'utils', 'readr')
+new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+suppressPackageStartupMessages(lapply(packages, library, character.only = T))
 
 ################################ LOAD DATA ####################################
-county_color <- c("#58b5e1","#1c5b5a","#46ebdc","#1f4196","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#b7d165","#30d52e","#ff5357")
+county_color <- c("#58b5e1", "#1c5b5a", "#46ebdc", "#1f4196", "#e28de2", "#818bd7", "#e4ccf1", "#82185f", "#f849b6","#000000","#5e34bc","#35618f", "#b7d165", "#9c3190")
 counties <- c('Anson', 'Cabarrus', 'Catawba', 'Chester', 'Cleveland', 'Gaston', 'Iredell', 'Lancaster', 'Lincoln', 'Mecklenburg', 'Rowan', 'Stanly', 'Union', 'York')
 county_color <- set_names(county_color, counties)
 x_label <- c('Under 5 Female', 'Under 5 Male', '05-09 Female', '05-09 Male', '10-14 Female', '10-14 Male', '15-19 Female', '15-19 Male', '20-24 Female', '20-24 Male', '25-29 Female', '25-29 Male', '30-34 Female', '30-34 Male', '35-39 Female', '35-39 Male', '40-44 Female', '40-44 Male', '45-49 Female', '45-49 Male', '50-54 Female', '50-54 Male', '55-59 Female', '55-59 Male', '60-64 Female', '60-64 Male', '65-69 Female', '65-69 Male', '70-74 Female', '70-74 Male', '75-79 Female', '75-79 Male', '80-84 Female', '80-84 Male', '85 and over Female', '85 and over Male')
 attainment_lvl <- c('Highest Degree: Less than a High School Diploma', 'Highest Degree: High School Diploma', 'Highest Degree: Some College, No Degree', "Highest Degree: Associate's Degree", "Highest Degree: Bachelor's Degree", "Highest Degree: Graduate or Professional Degree")
 foreign_detail <- c('Foreign-Born: Africa', 'Foreign-Born: Asia', 'Foreign-Born: Europe', 'Foreign-Born: Latin America', 'Place of Birth Total')
+acs_url <- a('American Community Survey', href='https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-detail.html')
+bls_url <- a('Bureau of Labor Statistics', href='https://www.bls.gov/lau/')
+cdc_url <- a('Center for Disease Control', href='https://wonder.cdc.gov/')
+
+
 
 countypop <- rbind(read_csv("cc-est2019-agesex-37.csv", show_col_types = F),
                    read_csv("cc-est2019-agesex-45.csv", show_col_types = F)) %>%
@@ -243,7 +243,10 @@ body <-
                                sliderTextInput('year1',
                                                'Select Year',
                                                choices = unique(countypop$YEAR),
-                                               grid = T))),
+                                               grid = T)),
+                           box(width=3,
+                               height=100,
+                               p(tagList("Source:", acs_url)))),
                          fluidRow(
                            box(plotlyOutput('population',
                                           height = 600,
@@ -260,7 +263,10 @@ body <-
                                                'Select Year',
                                                choices = unique(ethpop$YEAR),
                                                grid = T)
-                               )),
+                               ),
+                           box(width=3,
+                               height=100,
+                               p(tagList("Source:", acs_url)))),
                          fluidRow(
                            box(plotlyOutput('ethnicity', height = 600, width = 700)
                                ))),
@@ -280,7 +286,10 @@ body <-
                                            unique(pop_age_gender$CTYNAME),
                                            selected='Charlotte Region',
                                            selectize = F)
-                               )),
+                               ),
+                           box(width=3,
+                               height=100,
+                               p(tagList("Source:", acs_url)))),
                          fluidRow(
                            box(plotlyOutput('age',
                                           height = 600,
@@ -294,7 +303,10 @@ body <-
                                                'Select Year',
                                                choices = unique(birthplace$Year),
                                                grid=T)
-                               )),
+                               ),
+                           box(width=3,
+                               height=100,
+                               p(tagList("Source:", acs_url)))),
                          fluidRow(
                            box(plotlyOutput('pob', height = 600, width = 700)
                          ))))),
@@ -329,7 +341,10 @@ body <-
                                selectInput('county2',
                                                'Select County',
                                                choices = unique(unemployment$County))
-                               )),
+                               ),
+                           box(width=3,
+                               height=100,
+                               p(tagList("Source:", bls_url)))),
                          fluidRow(
                            box(plotlyOutput('unemployment',
                                           height = 600,
@@ -346,7 +361,10 @@ body <-
                                                'Select Year',
                                                choices = unique(income$Year),
                                                grid=T)
-                               )),
+                               ),
+                           box(width=3,
+                               height=100,
+                               p(tagList("Source:", acs_url)))),
                          fluidRow(
                            box(plotlyOutput('income',
                                             height=600,
@@ -367,7 +385,10 @@ body <-
                                selectInput('attained',
                                            'Select Educational Attainment Group',
                                            choices = unique(education$Measure))
-                               )),
+                               ),
+                           box(width=3,
+                               height=100,
+                               p(tagList("Source:", acs_url)))),
                          fluidRow(
                            box(plotlyOutput('attainment',
                                           height = 600,
@@ -390,7 +411,10 @@ body <-
                                            choices = c('People with Health Insurance',
                                                        'People without Health Insurance',
                                                        'Children without Health Insurance')
-                                           ))),
+                                           )),
+                           box(width=3,
+                               height=100,
+                               p(tagList("Source:", acs_url)))),
                          fluidRow(
                            box(plotlyOutput('nocoverage',
                                           height = 600,
@@ -412,7 +436,10 @@ body <-
                                selectInput('birthmeasure',
                                            'Select Birth-Related Measure',
                                            choices= unique(births$Measure)
-                                           ))),
+                                           )),
+                           box(width=3,
+                               height=100,
+                               p(tagList("Source:", cdc_url)))),
                          fluidRow(
                            box(plotlyOutput('birthplot1',
                                             height=600,
@@ -427,8 +454,11 @@ body <-
                                height=100,
                                sliderTextInput('year10',
                                                'Select Year',
-                                               choices= unique(std$Year),
-                                               grid=T))),
+                                               choices= sort(unique(std$Year)),
+                                               grid=T)),
+                           box(width=3,
+                               height=100,
+                               p(tagList("Source:", cdc_url)))),
                          fluidRow(
                            box(plotlyOutput('std1',
                                             height=600,
@@ -444,7 +474,10 @@ body <-
                                sliderTextInput('year11',
                                                'Select Year',
                                                choices= unique(drug$Year),
-                                               grid=T))),
+                                               grid=T)),
+                           box(width=3,
+                               height=100,
+                               p(tagList("Source:", cdc_url)))),
                          fluidRow(
                            box(plotlyOutput('drug1',
                                             height=600,
@@ -460,7 +493,10 @@ body <-
                                                'Select Year',
                                                choices = unique(housing$Year),
                                                grid = T)
-                               )),
+                               ),
+                           box(width=3,
+                               height=100,
+                               p(tagList("Source:", acs_url)))),
                          fluidRow(
                            box(plotlyOutput('houseage',
                                              height = 600,
@@ -476,12 +512,19 @@ body <-
                                                'Select Year',
                                                choices = unique(poverty$Year),
                                                grid = T)
-                               )),
+                               ),
+                           box(width=3,
+                               height=100,
+                               p(tagList("Source:", acs_url)))),
                          fluidRow(
                            box(plotlyOutput('poverty',
                                             height = 600,
                                             width = 700)
-                               )))))
+                               ),
+                           box(plotlyOutput('poverty2',
+                                            height = 600,
+                                            width = 700)
+                           )))))
                      ))
 ui <- dashboardPage(header, sidebar, body, skin = 'green')
 
@@ -498,6 +541,7 @@ server <- function(input, output, session) {
              legend= list(title=list(text='<b> Counties </b>')))
     
   })
+  
   output$popchange <- renderPlotly({
     plot_ly(countypop, x=~YEAR, y=~CHANGE*100, type='scatter', mode='lines',
             color=~CTYNAME, colors=county_color) %>%
@@ -542,32 +586,41 @@ server <- function(input, output, session) {
   
   output$unemployment <- renderPlotly({
     # generate bins based on input$bins from ui.R
-    plot_ly(unemployment %>% filter(Year==input$year5, Month==input$month),
-            x=~Unemployment, y=~County, type='bar',
-            color=~County, colors=county_color)
+    plot_ly(unemployment %>% filter(Year==input$year5, Month==input$month), x=~Unemployment*100, y=~County,
+            color=~County, colors=county_color, type='bar') %>%
+      layout(title='<b> Unemployment Rate by Year </b>',
+             legend=list(title=list(text='<b> Counties </b>')),
+             yaxis= list(title='County'),
+             xaxis= list(title='Unemplyment %', ticksuffix='%', range=c(0,25)))
 
   })
 
   output$unemploychange <- renderPlotly({
-    plot_ly(unemployment %>% filter(County == input$county2),
-            x=~Date, y=~Unemployment, type='scatter', mode='lines',
-            color=~County, colors=county_color)
+    plot_ly(unemployment %>% filter(County == input$county2), x=~Date, y=~Unemployment*100, color=~County, colors=county_color, type='scatter', mode='lines') %>%
+      layout(title='<b> Unemployment Rate over Time </b>',
+             legend=list(title=list(text='<b> Counties </b>')),
+             xaxis= list(title='Date'),
+             yaxis= list(title='Unemployment %', ticksuffix='%', range=c(0,25)))
 
   })
   
   output$income <- renderPlotly({
-    plot_ly(income %>% filter(Year == input$year6),
-            y=~County, x=~(Numerator_value/Total),
-            color=~Measure, type='bar') %>%
-      layout(barmode='stack')
+    plot_ly(income %>% filter(Year == input$year6), y=~County, x=~(Numerator_value/Total)*100, color=~Measure, type='bar') %>%
+      layout(barmode = 'stack',
+             title='<b> Household Income Share by County </b>',
+             legend=list(title=list(text='<b> Income Group </b>')),
+             yaxis= list(title='County'),
+             xaxis= list(title='Income Share', ticksuffix='%', range=c(0,100)))
     
   })
   
   output$attainment <- renderPlotly({
     plot_ly(education %>% group_by(Year, Measure, County) %>%
-              summarise(Numerator = sum(Numerator_value), Denominator = mean(Total)) %>%
-              filter(Year == input$year7, Measure == input$attained),
-            y=~County, color=~County, colors=county_color, x=~(Numerator/Denominator), type='bar')
+              summarise(Numerator = sum(Numerator_value),
+                        Denominator = mean(Total)) %>% filter(Year == input$year7, Measure == input$attained), y=~County, color=~County, colors=county_color, x=~(Numerator/Denominator)*100, type='bar') %>%
+      layout(title='<b> Educational Attainment % by Attainment Group </b>',
+             yaxis=list(title='County'),
+             xaxis=list(title='Percentage of Population', ticksuffix='%', range=c(0,45)))
 
   })
   
@@ -576,7 +629,11 @@ server <- function(input, output, session) {
               group_by(Year, County, Measure) %>%
               summarise(added=sum(Numerator_value)) %>%
               filter(Year==input$year8, !(Measure %in% c("Health Insurance Total"))),
-            y=~County, x=~added, type='bar', color=~Measure)
+            y=~County, x=~added, type='bar',
+            color=~Measure)%>%
+      layout(title= '<b> Healthcare Coverage by Group </b>',
+             xaxis= list(title='Population', tickformat=',', range=c(0,1200000)),
+             yaxis= list(title='County'))
 
   })
   
@@ -585,52 +642,79 @@ server <- function(input, output, session) {
               group_by(Year, County, Measure) %>%
               summarise(added=sum(Numerator_value)) %>%
               filter(Year==input$year8, Measure==input$covclass),
-            y=~County, x=~added, type='bar', color=~County, colors=county_color)
+            y=~County, x=~added, type='bar', color=~County, colors=county_color) %>%
+      layout(xaxis= list(title='Population', tickformat=','),
+             yaxis= list(title=''))
     
   })
   output$birthplot1 <- renderPlotly({
     plot_ly(births %>% filter(Year==input$year9, Measure==input$birthmeasure),
-            y=~County, x=~Value, color=~County,
-            colors=county_color, type='bar')
+            y=~County, x=~Value, color=~County, colors=county_color, type='bar') %>%
+      layout(title= '<b> Count per 100,000 People </b>',
+             yaxis= list(title='Counties'),
+             xaxis= list(title='Births', tickformat=','))
   })
   
   output$birthplot2 <- renderPlotly({
     plot_ly(births %>% filter(Measure==input$birthmeasure),
-            y=~Value, x=~Year, color=~County, colors=county_color,
-            type='scatter', mode='lines')
+            y=~Value, x=~Year, color=~County, colors=county_color, type='scatter', mode='lines') %>%
+      layout(title= '<b> Counts Over Time </b>',
+             xaxis= list(title='Year'),
+             yaxis= list(title='Births', tickformat=','))
   })
   
   output$std1 <- renderPlotly({
     plot_ly(std %>% filter(Year==input$year10),
             x=~Cases, y=~County, color=~STD,
-            type='bar')
+            type='bar') %>%
+      layout(title= '<b> STD Cases by STD </b>',
+             xaxis= list(title='Cases', tickformat=',', range=c(0,12000)),
+             yaxis= list(title=''))
   })
   
   output$std2 <- renderPlotly({
-    plot_ly(std, x=~Year, y=~Cases,
-            color=~County, colors=~county_color, symbol=~STD,
-            type='scatter', mode='lines+markers')
+    plot_ly(std,
+            x=~Year, y=~Cases, color=~County, colors=~county_color, symbol=~STD,
+            type='scatter', mode='lines+markers') %>%
+      layout(title= '<b> STD Cases Over Time </b>',
+             xaxis= list(title='Year'),
+             yaxis= list(title='Cases', tickformat=',', range=c(0,12000)))
   })
   
   output$drug1 <- renderPlotly({
-    plot_ly(drug %>% filter(Year==input$year11),
-            x=~Crude_Rate, y=~County, type='bar',
-            colors=~county_color, color=~County)
+    plot_ly(drug %>% filter(Year==input$year11), x=~Crude_Rate, y=~County, type='bar', colors=~county_color, color=~County) %>%
+      layout(title= '<b> Drug Related Deaths per 100,000 People </b>',
+             xaxis= list(title='Deaths', range=c(0,80)),
+             yaxis= list(title='County'))
   })
   
   output$houseage <- renderPlotly({
-    plot_ly(housing %>% filter(Year == input$year12), y=~County, x=~diff,
-            color=~County, colors=county_color, type='bar') %>%
-      layout(xaxis=list(showticklabels=FALSE))
+    plot_ly(housing %>% filter(Year == input$year12),
+            y=~County, x=~diff, color=~County,
+            colors=county_color, type='bar') %>%
+      layout(title= '<b> Median House Age </b>',
+             yaxis= list(title='Counties'),
+             xaxis= list(title='House Age', tickformat=',',
+                         showticklabels=F, range=c(0,100)))
 
   })
   
   output$poverty <- renderPlotly({
     plot_ly(poverty %>% filter(Year==input$year13),
-            y=~County, x=~Numerator_value/Denominator_value,
+            y=~County, x=~Numerator_value/Denominator_value*100,
             color=~County, colors=county_color, type='bar') %>%
-      layout(xaxis=list(range=list(0,0.2)))
+      layout(title= '<b> Poverty Rate by Year </b>',
+             xaxis=list(title='Poverty Rate', ticksuffix='%', range=list(0,30)))
 
+  })
+  
+  output$poverty2 <- renderPlotly({
+    plot_ly(poverty,
+            y=~Numerator_value/Denominator_value*100, x=~Year, color=~County, colors=county_color, type='scatter', mode='lines') %>%
+      layout(title= '<b> Poverty Rate Over Time </b>',
+             xaxis= list(title='Year'),
+             yaxis= list(title='Poverty Rate', ticksuffix='%', range=c(0,30)))
+    
   })
   
 }

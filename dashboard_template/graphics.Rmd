@@ -13,7 +13,7 @@ suppressPackageStartupMessages(lapply(packages, library, character.only = T))
 
 # Making Dataframes
 ```{r}
-county_color <- c("#58b5e1","#1c5b5a","#46ebdc","#1f4196","#e28de2","#818bd7","#e4ccf1","#82185f","#f849b6","#000000","#5e34bc","#b7d165","#30d52e","#ff5357")
+county_color <- c("#58b5e1", "#1c5b5a", "#46ebdc", "#1f4196", "#e28de2", "#818bd7", "#e4ccf1", "#82185f", "#f849b6","#000000","#5e34bc","#35618f", "#b7d165", "#9c3190")
 counties <- c('Anson', 'Cabarrus', 'Catawba', 'Chester', 'Cleveland', 'Gaston', 'Iredell', 'Lancaster', 'Lincoln', 'Mecklenburg', 'Rowan', 'Stanly', 'Union', 'York')
 county_color <- set_names(county_color, counties)
 attainment_lvl <- c('Highest Degree: Less than a High School Diploma', 'Highest Degree: High School Diploma', 'Highest Degree: Some College, No Degree', "Highest Degree: Associate's Degree", "Highest Degree: Bachelor's Degree", "Highest Degree: Graduate or Professional Degree")
@@ -226,6 +226,11 @@ transportation <- read.csv('Values.csv') %>%
 # Demographics
 ## Population
 ```{r}
+# ,
+#                            box(width=3,
+#                                height=100,
+#                                p(tagList("Source:", acs_url)))
+# source: https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-detail.html
 plot_ly(countypop %>% filter(YEAR == 2019), x = ~POPESTIMATE, y = ~CTYNAME, type = 'bar', color = ~CTYNAME, colors = county_color, orientation = 'h') %>%
   layout(title= '<b> Estimated County Population by Year </b>',
          xaxis= list(title='Population', tickformat=',', range=c(0,1250000)),
@@ -241,6 +246,7 @@ plot_ly(countypop, x=~YEAR, y=~CHANGE*100, color=~CTYNAME, type='scatter', mode=
 
 ## Age & Gender
 ```{r, fig.height = 6, fig.width= 10, warning=FALSE}
+# source: https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-detail.html
 plot_ly(pop_age_gender %>% filter(YEAR == 2017, CTYNAME == 'Charlotte Region'),
         y=~DEMO, x=~PERCENTAGE*100,
         type='bar', color=~GENDER) %>%
@@ -252,6 +258,7 @@ plot_ly(pop_age_gender %>% filter(YEAR == 2017, CTYNAME == 'Charlotte Region'),
 
 ## Race & Ethnicity
 ```{r}
+# source: https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-detail.html
 plot_ly(ethpop %>% filter(YEAR == 2019),
         y=~CTYNAME, x=~(POP/TOT_POP)*100, color=~ETHNICITY,
         type='bar') %>%
@@ -264,6 +271,7 @@ plot_ly(ethpop %>% filter(YEAR == 2019),
 
 ## Place of Birth
 ```{r}
+# source: https://www.census.gov/programs-surveys/acs/data.html
 plot_ly(birthplace %>% filter(Year == 2019),
         y=~County, x=~(Numerator_value/Total)*100, color=~Measure,
         type='bar') %>%
@@ -277,29 +285,29 @@ plot_ly(birthplace %>% filter(Year == 2019),
 # Economy
 ## Unemployment
 ```{r}
+# source: https://www.bls.gov/lau/
 plot_ly(unemployment, x=~Date, y=~Unemployment*100, color=~County, colors=county_color, type='scatter', mode='lines') %>%
-  layout(title='<b> County Population Percentage by Place of Birth </b>',
-         legend=list(title=list(text='<b> Unemployment Rate over Time </b>')),
+  layout(title='<b> Unemployment Rate over Time </b>',
+         legend=list(title=list(text='<b> Counties </b>')),
          xaxis= list(title='Date'),
          yaxis= list(title='Unemployment %', ticksuffix='%', range=c(0,25)))
 
 plot_ly(unemployment %>% filter(Year==2015, Month==6), x=~Unemployment*100, y=~County,
         color=~County, colors=county_color, type='bar') %>%
   layout(title='<b> Unemployment Rate by Year </b>',
-         legend=list(title=list(text='<b> Place of Birth </b>')),
+         legend=list(title=list(text='<b> Counties </b>')),
          yaxis= list(title='County'),
          xaxis= list(title='Unemplyment %', ticksuffix='%', range=c(0,25)))
 ```
 
-################   6/21 Up to this point has been done in the shiny app  ######################
-
 ## Income
 ```{r}
 #### DFs from Values.csv are missing Anson, Chester, and Stanly Counties
+# source: https://www.census.gov/programs-surveys/acs/data.html
 plot_ly(income %>% filter(Year == 2014), y=~County, x=~(Numerator_value/Total)*100, color=~Measure, type='bar') %>%
   layout(barmode = 'stack',
          title='<b> Household Income Share by County </b>',
-         legend=list(title=list(text='<b> Place of Birth </b>')),
+         legend=list(title=list(text='<b> Income Group </b>')),
          yaxis= list(title='County'),
          xaxis= list(title='Income Share', ticksuffix='%', range=c(0,100)))
 ```
@@ -307,6 +315,7 @@ plot_ly(income %>% filter(Year == 2014), y=~County, x=~(Numerator_value/Total)*1
 # Education
 ## Educational Attainment
 ```{r}
+# source: https://www.census.gov/programs-surveys/acs/data.html
 plot_ly(education %>% group_by(Year, Measure, County) %>%
   summarise(Numerator = sum(Numerator_value),
             Denominator = mean(Total)) %>% filter(Year == 2018, Measure == 'High School Diploma'), y=~County, color=~County, colors=county_color, x=~(Numerator/Denominator)*100, type='bar') %>%
@@ -318,6 +327,7 @@ plot_ly(education %>% group_by(Year, Measure, County) %>%
 # Health
 ## Health Care Coverage
 ```{r, warning=FALSE}
+# source: https://www.census.gov/programs-surveys/acs/data.html
 plot_ly(coverage %>%
          group_by(Year, County, Measure) %>%
          summarise(added=sum(Numerator_value)) %>%
@@ -339,6 +349,7 @@ plot_ly(coverage %>%
 
 ## Drug-Related Deaths
 ```{r}
+# source: https://wonder.cdc.gov/
 plot_ly(drug %>% filter(Year==2017), x=~Crude_Rate, y=~County, type='bar', colors=~county_color, color=~County) %>%
   layout(title= '<b> Drug Related Deaths per 100,000 People </b>',
          xaxis= list(title='Deaths', range=c(0,80)),
@@ -347,40 +358,43 @@ plot_ly(drug %>% filter(Year==2017), x=~Crude_Rate, y=~County, type='bar', color
 
 ## STD Cases
 ```{r, warning=FALSE}
+# source: https://wonder.cdc.gov/
 plot_ly(std %>% filter(Year==2019),
         x=~Cases, y=~County, color=~STD,
         type='bar') %>%
   layout(title= '<b> STD Cases by STD </b>',
-         xaxis= list(title='Cases', tickformat=',', range=c(0,15000)),
+         xaxis= list(title='Cases', tickformat=',', range=c(0,12000)),
          yaxis= list(title=''))
+
 plot_ly(std,
         x=~Year, y=~Cases, color=~County, colors=~county_color, symbol=~STD,
         type='scatter', mode='lines+markers') %>%
   layout(title= '<b> STD Cases Over Time </b>',
          xaxis= list(title='Year'),
-         yaxis= list(title='Cases', tickformat=',', range=c(0,15000)))
+         yaxis= list(title='Cases', tickformat=',', range=c(0,12000)))
 ```
 
 ## Births
 ```{r}
-# https://wonder.cdc.gov/
+# source: https://wonder.cdc.gov/
 # Rate per 100,000
 plot_ly(births %>% filter(Year==2019, Measure=='Birth_Rate'),
         y=~County, x=~Value, color=~County, colors=county_color, type='bar') %>%
-  layout(title= '<b> Births per 100,000 People </b>',
+  layout(title= '<b> Count per 100,000 People </b>',
          yaxis= list(title='Counties'),
-         xaxis= list(title='Births', tickformat=',', range=c(0,2000)))
+         xaxis= list(title='Births', tickformat=','))
 
 plot_ly(births %>% filter(Measure=='Birth_Rate'),
         y=~Value, x=~Year, color=~County, colors=county_color, type='scatter', mode='lines') %>%
-  layout(title= '<b> Births Over Time </b>',
+  layout(title= '<b> Count Over Time </b>',
          xaxis= list(title='Year'),
-         yaxis= list(title='Births', tickformat=',', range=c(800,2000)))
+         yaxis= list(title='Births', tickformat=','))
 ```
 
 # Housing
 ## Housing Age
 ```{r}
+# source: https://www.census.gov/programs-surveys/acs/data.html
 # axis is giving double the true value AND lines are thin
 plot_ly(housing %>% filter(Year == 2014),
         y=~County, x=~diff, color=~County,
@@ -393,29 +407,19 @@ plot_ly(housing %>% filter(Year == 2014),
 # Social Well-Being
 ## Poverty
 ```{r}
+# source: https://www.census.gov/programs-surveys/acs/data.html
 plot_ly(poverty %>% filter(Year==2014),
         y=~County, x=~Numerator_value/Denominator_value*100,
         color=~County, colors=county_color, type='bar') %>%
-      layout(xaxis=list(title='Poverty Rate', ticksuffix='%', range=list(0,30)))
+      layout(title= '<b> Poverty Rate by Year </b>',
+             xaxis=list(title='Poverty Rate', ticksuffix='%', range=list(0,30)))
 
 plot_ly(poverty,
         y=~Numerator_value/Denominator_value*100, x=~Year, color=~County, colors=county_color, type='scatter', mode='lines') %>%
   layout(title= '<b> Poverty Rate Over Time </b>',
          xaxis= list(title='Year'),
-         yaxis= list(title='Poverty Rate', ticksuffix='%', range=c(0,30)))
+         yaxis= list(title='Poverty Rate',
+                     ticksuffix='%', range=c(0,30)))
 ```
-
-# Transportation
-##Commuting Modes
-```{r, eval=FALSE}
-# Way too many missing values to create a substantive visualization.
-plot_ly(transportation %>% filter(Year==2018),
-        x=~Numerator_value, y=~County, color=~Measure,
-        type='bar')
-```
-
-
-
-
 
 
