@@ -1,0 +1,117 @@
+---
+title: "R Notebook"
+---
+
+
+```{r, results='hide'}
+options(tigris_use_cache = TRUE)
+#list all necessary packages
+packages <- c('stats', 'graphics', 'purrr', 'readxl', 'utils', 'readr', 'shinydashboard', 'shinyWidgets', 'lubridate', 'fredr', 'blsAPI', 'tidycensus', 'rjson', 'zoo', 'plyr', 'plotly', 'dplyr', 'tidyr', 'bsts', 'rstan', 'modelr', 'brms', 'cowplot', 'ggridges', 'colorspace')
+#list github package repos
+github <- c('mikeasilva/blsAPI')
+#gather uninstalled packages
+new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+#uninstalled in CRAN
+cran_pack <- new.packages[new.packages %in% available.packages()]
+#uninstalled githubs
+non_cran <- new.packages[!new.packages %in% available.packages()]
+#install CRAN packages
+if(length(cran_pack)) install.packages(cran_pack)
+#install github packages (won't work if multiple packages with same name)
+if(length(non_cran)){
+  for(i in non_cran){
+    for(j in github){
+      if(grepl(i,j) == T){
+        devtools::install_github(j)
+      }
+    }
+  }
+}
+#load in API Keys
+source('~/Urban_Institute/ui-regional-indicators/dashboard_template/api_keys.txt')
+#load in packages in session
+suppressPackageStartupMessages(lapply(packages, library, character.only=T))
+census_api_key(census_key)
+fredr_set_key(fred_key)
+```
+
+# CENSUS GeoData
+
+
+```{r}
+county_color <- c("#58b5e1", "#1c5b5a", "#46ebdc", "#1f4196", "#e28de2", "#818bd7", "#e4ccf1", "#82185f", "#f849b6","#000000","#5e34bc","#35618f", "#b7d165", "#9c3190")
+nc_counties <- c('007', '025', '035', '045', '071', '097', '109', '119', '159', '167', '179')
+sc_counties <- c('023', '057', '091')
+counties <- c('Anson', 'Cabarrus', 'Catawba', 'Chester', 'Cleveland', 'Gaston', 'Iredell', 'Lancaster', 'Lincoln', 'Mecklenburg', 'Rowan', 'Stanly', 'Union', 'York')
+county_codes <- c(nc_counties, sc_counties)
+county_color <- set_names(county_color, counties)
+x_label <- c('Under 5 Female', 'Under 5 Male', '05-09 Female', '05-09 Male', '10-14 Female', '10-14 Male', '15-19 Female', '15-19 Male', '20-24 Female', '20-24 Male', '25-29 Female', '25-29 Male', '30-34 Female', '30-34 Male', '35-39 Female', '35-39 Male', '40-44 Female', '40-44 Male', '45-49 Female', '45-49 Male', '50-54 Female', '50-54 Male', '55-59 Female', '55-59 Male', '60-64 Female', '60-64 Male', '65-69 Female', '65-69 Male', '70-74 Female', '70-74 Male', '75-79 Female', '75-79 Male', '80-84 Female', '80-84 Male', '85 and over Female', '85 and over Male')
+attainment_lvl <- c('Highest Degree: Less than a High School Diploma', 'Highest Degree: High School Diploma', 'Highest Degree: Some College, No Degree', "Highest Degree: Associate's Degree", "Highest Degree: Bachelor's Degree", "Highest Degree: Graduate or Professional Degree")
+foreign_detail <- c('Foreign-Born: Africa', 'Foreign-Born: Asia', 'Foreign-Born: Europe', 'Foreign-Born: Latin America', 'Place of Birth Total')
+```
+
+```{r, warning=FALSE}
+geo_df<- data.frame()
+metrics <- data.frame(code = c("B06011_001E", "B25058_001E", "B25035_001E"), title = c('Median Household Income', 'Median Contract Rent', 'Median Year Structure Built'), legend = c('Median Income', 'Price in Dollars', 'Year')) %>% mutate(s_code = substr(code, 1, nchar(code)-1))
+acs_batch_years <- unique(round_any(seq.int(2010, year(Sys.Date())), 5, f=floor))
+for(i in county_codes){
+  for(j in acs_batch_years){
+    if(i %in% nc_counties){
+      geo_df <- rbind(geo_df,
+                  get_acs(
+                    state = 37,
+                    county = i,
+                    geography = "county subdivision",
+                    variables = metrics$code,
+                    geometry = TRUE,
+                    year = j,
+                    survey = 'acs5') %>%
+                    mutate(year=j) %>%
+                    select(variable, estimate, year, geometry)
+                  )
+      }
+    if(i %in% sc_counties){
+      geo_df <- rbind(geo_df,
+                  get_acs(
+                    state = 45,
+                    county = i,
+                    geography = "county subdivision",
+                    variables = metrics$code,
+                    geometry = TRUE,
+                    year = j,
+                    survey = 'acs5') %>%
+                    mutate(year=j) %>%
+                    select(variable, estimate, year, geometry)
+                  )
+    }
+  }
+}
+```
+
+```{r}
+med_income <- ggplotly(geo_df %>%
+           filter(variable == metrics$s_code[1]) %>%
+  ggplot() + 
+    geom_sf(aes(fill = estimate, frame=year), colour=NA) +
+    labs(title = metrics$title[1], fill=metrics$legend[1]) +
+    scale_fill_viridis_c(), tooltip='fill')
+```
+
+```{r}
+med_rent <- ggplotly(geo_df %>%
+           filter(variable == metrics$s_code[2]) %>%
+  ggplot() + 
+    geom_sf(aes(fill = estimate, frame=year), colour=NA) +
+    labs(title = metrics$title[2], fill=metrics$legend[2]) +
+    scale_fill_viridis_c(), tooltip='fill')
+```
+
+```{r}
+med_year <- ggplotly(geo_df %>%
+           filter(variable == metrics$s_code[3]) %>%
+  ggplot() + 
+    geom_sf(aes(fill = estimate, frame=year), colour=NA) +
+    labs(title = metrics$title[3], fill=metrics$legend[3]) +
+    scale_fill_viridis_c(), tooltip='fill')
+```
+

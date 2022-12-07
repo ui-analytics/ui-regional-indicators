@@ -1,0 +1,188 @@
+---
+title: "R Notebook"
+---
+
+```{r}
+#list all necessary packages
+packages <- c('lubridate', 'fredr', 'blsAPI', 'tidycensus', 'dplyr', 'tidyr', 'rjson', 'zoo', 'plyr', 'plotly', 'tidybayes', 'bsts', 'rstan', 'modelr', 'brms', 'gganimate', 'cowplot', 'ggridges', 'colorspace')
+#list github package repos
+github <- c('mikeasilva/blsAPI')
+#gather uninstalled packages
+new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+#uninstalled in CRAN
+cran_pack <- new.packages[new.packages %in% available.packages()]
+#uninstalled githubs
+non_cran <- new.packages[!new.packages %in% available.packages()]
+#install CRAN packages
+if(length(cran_pack)) install.packages(cran_pack)
+#install github packages (won't work if multiple packages with same name)
+if(length(non_cran)){
+  for(i in non_cran){
+    for(j in github){
+      if(grepl(i,j) == T){
+        devtools::install_github(j)
+      }
+    }
+  }
+}
+#load in API Keys
+source('~/Urban_Institute/ui-regional-indicators/dashboard_template/api_keys.txt')
+#load in packages in session
+suppressPackageStartupMessages(lapply(packages, library, character.only=T))
+#set API Keys where necessary
+fredr_set_key(fred_key)
+```
+
+### National Data Pulls
+
+```{r}
+interest <- fredr(
+  series_id = "DFF",
+  observation_start = Sys.Date()-years(11),
+  observation_end = Sys.Date(),
+  frequency = 'm',
+  units = 'lin'
+) %>% mutate(IR = value)
+gdp <- fredr(
+  series_id = "GDPC1",
+  observation_start = Sys.Date()-years(11),
+  observation_end = Sys.Date(),
+  units = 'lin'
+) %>% mutate(GDP = value)
+
+inflation <- fredr(
+  series_id = "CPIAUCSL",
+  observation_start = Sys.Date()-years(11),
+  observation_end = Sys.Date(),
+  frequency = 'm',
+  units = 'pc1'
+) %>% mutate(CPI = value)
+```
+
+### Local Data Pulls - Charlotte-Concord-Gastonia, NC-SC
+
+```{r}
+# Pulling multiple series
+data_pull2 <- list('seriesid' = c('LAUMT371674000000003'),
+                   'startyear' = as.character(year(Sys.Date()-years(10))), 'endyear' = as.character(year(Sys.Date())), latest=F,'registrationKey' = bls_key)
+
+json_data <- fromJSON(blsAPI(data_pull2, api_version = 2))$Results$series[[1]]$data
+
+
+unemployment <- data.frame(matrix(ncol=4, nrow=0))
+colnames(unemployment) <- c('year', 'period', 'periodName', 'value')
+for(i in 1:length(json_data)){
+  unemployment[i,1] <- json_data[[i]]$year
+  unemployment[i,2] <- json_data[[i]]$period
+  unemployment[i,3] <- json_data[[i]]$periodName
+  unemployment[i,4] <- json_data[[i]]$value
+}
+unemployment <- unemployment %>%
+  mutate(date = as.Date(paste(year, periodName, '01',sep="-"), "%Y-%B-%d"),
+         UR = as.numeric(value))
+```
+
+```{r}
+data <- unemployment %>%
+  select(date, UR) %>%
+  full_join(inflation %>% select(date, CPI), by = 'date') %>%
+  full_join(gdp %>% select(date, GDP), by = 'date') %>%
+  full_join(interest %>% select(date, IR), by = 'date') %>%
+  dplyr::rename(DATE=date) %>%
+  arrange(DATE) %>%
+  mutate(GDP = na.spline(GDP)) %>%
+  filter(DATE >= as.Date(ISOdate(year(Sys.Date()-years(10)), 1, 1)),
+         !is.na(CPI), !is.na(GDP), !is.na(IR))
+```
+
+```{r}
+train <- head(data %>%
+                mutate(time = 1:n()), -4)
+test <- tail(data %>%
+               mutate(time = 1:n()), 4)
+```
+
+```{r, results='hide'}
+model_components <- list()
+model_components <- AddStudentLocalLinearTrend(model_components, y =train$UR)
+model <- bsts(UR~IR+CPI+GDP, model_components, niter = 500, data = train)
+```
+
+```{r, echo=FALSE}
+forecast_months = 4 # number of months forward to forecast
+set.seed(123456)
+y_max = .1
+y_axis = list(
+  coord_cartesian(ylim = c(-0.02, y_max), expand = FALSE),
+  scale_y_continuous(labels = scales::percent),
+  theme(axis.text.y = element_text(vjust = 0.05))
+)
+title = labs(x = NULL, y = NULL, title = "Charlotte Unmployment Forecast vs Actual")
+
+fits = train %>%
+  add_draws(colSums(aperm(model$state.contributions, c(2, 1, 3))))
+predictions = train %$%
+  tibble(
+    DATE = max(DATE) + months(1:forecast_months),
+    m = month(DATE),
+    time = max(time) + 1:forecast_months
+  ) %>%
+  add_draws(predict(model, newdata = test, horizon = forecast_months)$distribution, value = ".prediction")
+predictions_with_last_obs = train %>% 
+  slice(n()) %>% 
+  mutate(.draw = list(1:max(predictions$.draw))) %>% 
+  unnest(cols = c(.draw)) %>% 
+  mutate(.prediction = UR) %>% 
+  bind_rows(predictions)
+```
+
+```{r}
+train %>%
+  ggplot(aes(x = DATE, y = UR)) +
+  geom_line(aes(y = .value, group = .draw), alpha = 1/20, data = fits %>% sample_draws(100)) +
+  geom_line(aes(y = .prediction, group = .draw), alpha = 1/20, data = predictions %>% sample_draws(100)) +
+  geom_point()
+#coord_cartesian(ylim = c(-0.02, 0.15))
+```
+
+```{r, echo = FALSE}
+since_year = year(Sys.Date()-years(1))
+set.seed(123456)
+fit_color = "#3573b9"
+fit_color_fill = hex(mixcolor(.6, sRGB(1,1,1), hex2RGB(fit_color)))
+prediction_color = "#e41a1c"
+prediction_color_fill = hex(mixcolor(.6, sRGB(1,1,1), hex2RGB(prediction_color)))
+
+x_axis = list(
+  scale_x_date(date_breaks = "1 years", labels = year),
+  theme(axis.text.x = element_text(hjust = 0.1))
+)
+
+train %>%
+  filter(year(DATE) >= since_year) %>%
+  ggplot(aes(x = DATE, y = UR)) +
+  geom_line(aes(y = .value, group = .draw), alpha = 1/30, color = fit_color, size = .75,
+    data = fits %>% filter(year(DATE) >= since_year) %>% sample_draws(100)) +
+  geom_line(aes(y = .prediction, group = .draw), alpha = 1/20, color = prediction_color, size = .75,
+    data = predictions %>% sample_draws(100)) +
+  geom_point(size = 0.75) +
+  x_axis +
+  title
+```
+  
+ 
+```{r}
+train %>%
+  filter(year(DATE) >= since_year) %>%
+  ggplot(aes(x = DATE, y = UR)) +
+  stat_lineribbon(aes(y = .value), fill = adjustcolor(fit_color, alpha.f = .25), color = fit_color, .width = .95,
+    data = fits %>% filter(year(DATE) >= since_year)) +
+  stat_lineribbon(aes(y = .prediction), fill = adjustcolor(prediction_color, alpha.f = .25), color = prediction_color, .width = .95,
+    data = predictions) +
+  geom_line(aes(y= UR), data = test)+
+  geom_point()+
+  title
+```
+  
+
+

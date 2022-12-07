@@ -1,0 +1,23 @@
+---
+title: "Snapshot Tab"
+output: html_notebook
+---
+
+
+
+```{r}
+library(httr)
+library(jsonlite)
+```
+
+```{r}
+res = GET("https://api.weather.gov/gridpoints/GSP/118,64/forecast")
+data = fromJSON(rawToChar(res$content))
+df = data$properties
+df
+```
+
+```{r}
+table
+```
+

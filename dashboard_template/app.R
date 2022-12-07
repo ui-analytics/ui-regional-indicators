@@ -1,11 +1,39 @@
-packages <- c('dplyr', 'tidyr', 'stats', 'graphics', 'purrr', 'readxl', 'plotly', 'utils', 'readr')
+options(tigris_use_cache = TRUE)
+#list all necessary packages
+packages <- c('stats', 'graphics', 'purrr', 'readxl', 'utils', 'readr', 'shinydashboard', 'shinyWidgets', 'lubridate', 'fredr', 'blsAPI', 'tidycensus', 'rjson', 'zoo', 'plyr', 'plotly', 'dplyr', 'tidyr', 'bsts', 'rstan', 'modelr', 'brms', 'cowplot', 'ggridges', 'tidybayes', 'colorspace')
+#list github package repos
+github <- c('mikeasilva/blsAPI')
+#gather uninstalled packages
 new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
-if(length(new.packages)) install.packages(new.packages)
-suppressPackageStartupMessages(lapply(packages, library, character.only = T))
+#uninstalled in CRAN
+cran_pack <- new.packages[new.packages %in% available.packages()]
+#uninstalled githubs
+non_cran <- new.packages[!new.packages %in% available.packages()]
+#install CRAN packages
+if(length(cran_pack)) install.packages(cran_pack)
+#install github packages (won't work if multiple packages with same name)
+if(length(non_cran)){
+  for(i in non_cran){
+    for(j in github){
+      if(grepl(i,j) == T){
+        devtools::install_github(j)
+      }
+    }
+  }
+}
+#load in API Keys
+source('~/Urban_Institute/ui-regional-indicators/dashboard_template/api_keys.txt')
+#load in packages in session
+suppressPackageStartupMessages(lapply(packages, library, character.only=T))
+census_api_key(census_key)
+fredr_set_key(fred_key)
 
 ################################ LOAD DATA ####################################
 county_color <- c("#58b5e1", "#1c5b5a", "#46ebdc", "#1f4196", "#e28de2", "#818bd7", "#e4ccf1", "#82185f", "#f849b6","#000000","#5e34bc","#35618f", "#b7d165", "#9c3190")
+nc_counties <- c('007', '025', '035', '045', '071', '097', '109', '119', '159', '167', '179')
+sc_counties <- c('023', '057', '091')
 counties <- c('Anson', 'Cabarrus', 'Catawba', 'Chester', 'Cleveland', 'Gaston', 'Iredell', 'Lancaster', 'Lincoln', 'Mecklenburg', 'Rowan', 'Stanly', 'Union', 'York')
+county_codes <- c(nc_counties, sc_counties)
 county_color <- set_names(county_color, counties)
 x_label <- c('Under 5 Female', 'Under 5 Male', '05-09 Female', '05-09 Male', '10-14 Female', '10-14 Male', '15-19 Female', '15-19 Male', '20-24 Female', '20-24 Male', '25-29 Female', '25-29 Male', '30-34 Female', '30-34 Male', '35-39 Female', '35-39 Male', '40-44 Female', '40-44 Male', '45-49 Female', '45-49 Male', '50-54 Female', '50-54 Male', '55-59 Female', '55-59 Male', '60-64 Female', '60-64 Male', '65-69 Female', '65-69 Male', '70-74 Female', '70-74 Male', '75-79 Female', '75-79 Male', '80-84 Female', '80-84 Male', '85 and over Female', '85 and over Male')
 attainment_lvl <- c('Highest Degree: Less than a High School Diploma', 'Highest Degree: High School Diploma', 'Highest Degree: Some College, No Degree', "Highest Degree: Associate's Degree", "Highest Degree: Bachelor's Degree", "Highest Degree: Graduate or Professional Degree")
@@ -14,8 +42,162 @@ acs_url <- a('American Community Survey', href='https://www.census.gov/data/tabl
 bls_url <- a('Bureau of Labor Statistics', href='https://www.bls.gov/lau/')
 cdc_url <- a('Center for Disease Control', href='https://wonder.cdc.gov/')
 
+################################ GEOCENSUS ####################################
+geo_df<- data.frame()
+metrics <- data.frame(code = c("B06011_001E", "B25058_001E", "B25035_001E"), title = c('Median Household Income', 'Median Contract Rent', 'Median Year Structure Built'), legend = c('Median Income', 'Price in Dollars', 'Year')) %>% mutate(s_code = substr(code, 1, nchar(code)-1))
+acs_batch_years <- unique(round_any(seq.int(2010, year(Sys.Date())), 5, f=floor))
+for(i in county_codes){
+  for(j in acs_batch_years){
+    if(i %in% nc_counties){
+      geo_df <- rbind(geo_df,
+                      get_acs(
+                        state = 37,
+                        county = i,
+                        geography = "county subdivision",
+                        variables = metrics$code,
+                        geometry = TRUE,
+                        year = j,
+                        survey = 'acs5') %>%
+                        mutate(year=j) %>%
+                        select(variable, estimate, year, geometry)
+      )
+    }
+    if(i %in% sc_counties){
+      geo_df <- rbind(geo_df,
+                      get_acs(
+                        state = 45,
+                        county = i,
+                        geography = "county subdivision",
+                        variables = metrics$code,
+                        geometry = TRUE,
+                        year = j,
+                        survey = 'acs5') %>%
+                        mutate(year=j) %>%
+                        select(variable, estimate, year, geometry)
+      )
+    }
+  }
+}
+med_income <- ggplotly(geo_df %>%
+                         filter(variable == metrics$s_code[1]) %>%
+                         ggplot() + 
+                         geom_sf(aes(fill = estimate, frame=year), colour=NA) +
+                         labs(title = metrics$title[1], fill=metrics$legend[1]) +
+                         scale_fill_viridis_c(), tooltip='fill')
+med_rent <- ggplotly(geo_df %>%
+                       filter(variable == metrics$s_code[2]) %>%
+                       ggplot() + 
+                       geom_sf(aes(fill = estimate, frame=year), colour=NA) +
+                       labs(title = metrics$title[2], fill=metrics$legend[2]) +
+                       scale_fill_viridis_c(), tooltip='fill')
+med_year <- ggplotly(geo_df %>%
+                       filter(variable == metrics$s_code[3]) %>%
+                       ggplot() + 
+                       geom_sf(aes(fill = estimate, frame=year), colour=NA) +
+                       labs(title = metrics$title[3], fill=metrics$legend[3]) +
+                       scale_fill_viridis_c(), tooltip='fill')
+################################ FRED DATA ####################################
+interest <- fredr(
+  series_id = "DFF",
+  observation_start = Sys.Date()-years(11),
+  observation_end = Sys.Date(),
+  frequency = 'm',
+  units = 'lin'
+) %>% mutate(IR = value)
+gdp <- fredr(
+  series_id = "GDPC1",
+  observation_start = Sys.Date()-years(11),
+  observation_end = Sys.Date(),
+  units = 'lin'
+) %>% mutate(GDP = value)
+
+inflation <- fredr(
+  series_id = "CPIAUCSL",
+  observation_start = Sys.Date()-years(11),
+  observation_end = Sys.Date(),
+  frequency = 'm',
+  units = 'pc1'
+) %>% mutate(CPI = value)
+# Pulling multiple series
+data_pull2 <- list('seriesid' = c('LAUMT371674000000003'),
+                   'startyear' = as.character(year(Sys.Date()-years(10))), 'endyear' = as.character(year(Sys.Date())), latest=F,'registrationKey' = bls_key)
+
+json_data <- fromJSON(blsAPI(data_pull2, api_version = 2))$Results$series[[1]]$data
 
 
+unemployment <- data.frame(matrix(ncol=4, nrow=0))
+colnames(unemployment) <- c('year', 'period', 'periodName', 'value')
+for(i in 1:length(json_data)){
+  unemployment[i,1] <- json_data[[i]]$year
+  unemployment[i,2] <- json_data[[i]]$period
+  unemployment[i,3] <- json_data[[i]]$periodName
+  unemployment[i,4] <- json_data[[i]]$value
+}
+unemployment <- unemployment %>%
+  mutate(date = as.Date(paste(year, periodName, '01',sep="-"), "%Y-%B-%d"),
+         UR = as.numeric(value))
+data <- unemployment %>%
+  select(date, UR) %>%
+  full_join(inflation %>% select(date, CPI), by = 'date') %>%
+  full_join(gdp %>% select(date, GDP), by = 'date') %>%
+  full_join(interest %>% select(date, IR), by = 'date') %>%
+  dplyr::rename(DATE=date) %>%
+  arrange(DATE) %>%
+  mutate(GDP = na.spline(GDP)) %>%
+  filter(DATE >= as.Date(ISOdate(year(Sys.Date()-years(10)), 1, 1)),
+         !is.na(CPI), !is.na(GDP), !is.na(IR))
+train <- head(data %>%
+                mutate(time = 1:n()), -4)
+test <- tail(data %>%
+               mutate(time = 1:n()), 4)
+model_components <- list()
+model_components <- AddStudentLocalLinearTrend(model_components, y =train$UR)
+model <- bsts(UR~IR+CPI+GDP, model_components, niter = 500, data = train)
+forecast_months = 4 # number of months forward to forecast
+set.seed(123456)
+y_max = .1
+y_axis = list(
+  coord_cartesian(ylim = c(-0.02, y_max), expand = FALSE),
+  scale_y_continuous(labels = scales::percent),
+  theme(axis.text.y = element_text(vjust = 0.05))
+)
+title = labs(x = NULL, y = NULL, title = "Charlotte Unmployment Forecast vs Actual")
+fits = train %>%
+  add_draws(colSums(aperm(model$state.contributions, c(2, 1, 3))))
+predictions = train %$%
+  tibble(
+    DATE = max(DATE) + months(1:forecast_months),
+    m = month(DATE),
+    time = max(time) + 1:forecast_months
+  ) %>%
+  add_draws(predict(model, newdata = test, horizon = forecast_months)$distribution, value = ".prediction")
+predictions_with_last_obs = train %>% 
+  slice(n()) %>% 
+  mutate(.draw = list(1:max(predictions$.draw))) %>% 
+  unnest(cols = c(.draw)) %>% 
+  mutate(.prediction = UR) %>% 
+  bind_rows(predictions)
+since_year = year(Sys.Date()-years(1))
+set.seed(123456)
+fit_color = "#3573b9"
+fit_color_fill = hex(mixcolor(.6, sRGB(1,1,1), hex2RGB(fit_color)))
+prediction_color = "#e41a1c"
+prediction_color_fill = hex(mixcolor(.6, sRGB(1,1,1), hex2RGB(prediction_color)))
+x_axis = list(
+  scale_x_date(date_breaks = "1 years", labels = year),
+  theme(axis.text.x = element_text(hjust = 0.1))
+)
+ur_forecast <- train %>%
+  filter(year(DATE) >= since_year) %>%
+  ggplot(aes(x = DATE, y = UR)) +
+  stat_lineribbon(aes(y = .value), fill = adjustcolor(fit_color, alpha.f = .25), color = fit_color, .width = .95,
+                  data = fits %>% filter(year(DATE) >= since_year)) +
+  stat_lineribbon(aes(y = .prediction), fill = adjustcolor(prediction_color, alpha.f = .25), color = prediction_color, .width = .95,
+                  data = predictions) +
+  geom_line(aes(y= UR), data = test)+
+  geom_point()+
+  title
+################################ STATIC DATA ####################################
 countypop <- rbind(read_csv("cc-est2019-agesex-37.csv", show_col_types = F),
                    read_csv("cc-est2019-agesex-45.csv", show_col_types = F)) %>%
   select(-SUMLEV, -STATE, -COUNTY) %>%
@@ -222,6 +404,7 @@ sidebar <-
     sidebarMenu(
       id = 'sidebar',
       style = 'position: relative; overflow: visible;',
+      menuItem('Homepage', tabName = 'homepage'),
       menuItem('Demographics', tabName = 'demographics'),
       menuItem('Economy', tabName = 'economy'),
       menuItem('Education', tabName = 'education'),
@@ -234,6 +417,15 @@ sidebar <-
 body <- 
   dashboardBody(
     tabItems(
+      tabItem(tabName = 'homepage',
+              fluidRow(
+                box(plotlyOutput('median_income')),
+                box(plotOutput('unemp_forecast'))
+              ),
+              fluidRow(
+                box(plotlyOutput('median_rent')),
+                box(plotlyOutput('median_year_built'))
+              )),
       tabItem(tabName = 'demographics',
               tabsetPanel(
                 tabPanel('Population',
@@ -529,7 +721,10 @@ body <-
 ui <- dashboardPage(header, sidebar, body, skin = 'green')
 
 server <- function(input, output, session) {
-  
+  output$median_income <- renderPlotly(med_income)
+  output$unemp_forecast <- renderPlot(ur_forecast)
+  output$median_rent <- renderPlotly(med_rent)
+  output$median_year_built <- renderPlotly(med_year)
   output$population <- renderPlotly({
     # generate bins based on input$bins from ui.R
     plot_ly(countypop %>% filter(YEAR == input$year1),
